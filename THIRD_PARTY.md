@@ -10,7 +10,7 @@
 | `showcase/assets/vendor/three.min.js` | three.js r147 | MIT（版权 three.js authors，原文见 `showcase/assets/vendor/LICENSE`） |
 | `showcase/assets/vendor/GLTFLoader.js`、`OrbitControls.js` | three.js r147 的 `examples/js` | MIT（同上） |
 
-页面只用系统字体，没有随附字体文件。
+字体：没有随附字体文件。演示页 `demo/` 只用系统字体；展示页 `showcase/index.html` 在线时从 Google Fonts 加载 Saira Condensed、Noto Sans SC、JetBrains Mono（均为 SIL Open Font License 1.1），离线时退回系统字体。
 
 ## 2. 评测基准里的形体（全部是合成数据）
 

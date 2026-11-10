@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <script>(function () { try { if (Math.min(screen.width, screen.height) < 700) { document.querySelector('meta[name=viewport]').setAttribute('content', 'width=1600'); document.documentElement.classList.add('phone'); } } catch (e) {} })();</script>
 <title>三视图到三维：自动演示</title>
 <style>
@@ -392,7 +393,7 @@ th { color: var(--ink-2); font-weight: 600; }
       ["G", "扩散模型画三视图", "dl", "深度学习 · 扩散模型", "Qwen-Image-2.1：给正视图，让它补侧视图和顶视图。"],
     ];
     return scene(`<div style="display:grid;gap:18px;align-content:center;max-width:1200px;margin:0 auto;width:100%">
-      <div class="label">p6-multiview-3d · ${D.n_cases} 个有真值的物体 · 全部为已有运行结果的回放</div>
+      <div class="label">AI 教学演示案例 · ${D.n_cases} 个有真值的物体 · 全部为已有运行结果的回放</div>
       <h2 class="stitle" style="font-size:40px">AI 三视图 → 3D 建模：五条路线，同一把尺子</h2>
       <p class="ssub" style="font-size:18px;max-width:60em">给一个物体的正视图、侧视图、顶视图，能不能自动变回三维模型？我们把五种做法放在同一个基准上量了一遍。</p>
       <div class="routes5">${R5.map((r, i) => `<div class="rcard pop" data-i="${i}"><span class="tag">${r[0]}</span><h3>${esc(r[1])}</h3><span class="kind ${r[2]}">${esc(r[3])}</span><p>${esc(r[4])}</p></div>`).join("")}</div>
