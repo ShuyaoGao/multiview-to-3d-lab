@@ -1,0 +1,34 @@
+Documentation and teaching materials license
+============================================
+
+Copyright (c) 2026 Shuyao Gao
+Contact: gaoshuyao.mk@gmail.com
+
+Unless otherwise noted, the documentation and teaching materials in this
+repository are licensed under the Creative Commons Attribution 4.0
+International License (CC BY 4.0).
+
+  Summary: https://creativecommons.org/licenses/by/4.0/
+  Full legal code: https://creativecommons.org/licenses/by/4.0/legalcode
+
+"Documentation and teaching materials" means:
+  - the prose of README.md, DEMO_GUIDE.md and everything under docs/;
+  - the text, charts and figures shown by the web demo (demo/ and showcase/);
+  - figures and screenshots under docs/img/, demo/screenshots/ and
+    showcase/assets/ that were rendered by this project (benchmark views,
+    charts, loop renders).
+
+Source code (Python, JavaScript, HTML/CSS and build scripts) is licensed
+separately under the MIT License, see LICENSE.
+
+NOT covered by this file (see THIRD_PARTY.md):
+  - outputs of third-party AI models that are shown for comparison, in
+    particular images generated with Qwen-Image-2.1 (Qwen Research License,
+    non-commercial) and meshes reconstructed with VGGT-1B (weights under
+    CC BY-NC 4.0). Use them for non-commercial teaching and research only;
+  - the Spot and Bob models by Keenan Crane (CC0 1.0);
+  - vendored three.js files (MIT, three.js authors).
+
+Suggested attribution:
+  "Multiview-to-3D Lab" by Shuyao Gao, CC BY 4.0,
+  https://github.com/ShuyaoGao/multiview-to-3d-lab

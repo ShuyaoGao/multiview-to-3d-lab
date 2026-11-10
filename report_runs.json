@@ -1,0 +1,350 @@
+{
+ "entries": [
+  {
+   "key": "D",
+   "label": "D 三视图轮廓雕刻",
+   "run": "runs/D_visual_hull/20261008-004952_res256_render",
+   "note": "无模型基线，256³ 体素",
+   "mesh_in_showcase": true
+  },
+  {
+   "key": "C_mock",
+   "label": "C 闭环·规则 mock",
+   "run": "runs/C_llm_blender/20261008-005043_mock_all16",
+   "note": "非 LLM；三张轮廓挤出求交写成 bpy",
+   "mesh_in_showcase": true
+  },
+  {
+   "key": "C_claude",
+   "label": "C 闭环·Claude 代理",
+   "run": "runs/C_llm_blender/merged_claude_in_loop",
+   "note": "Claude Code 代理手动扮演 LLM（文件交换），≤4 轮",
+   "mesh_in_showcase": true
+  },
+  {
+   "key": "A_pixal",
+   "label": "A Pixal3D-MV",
+   "run": "runs/A_native3d/20261008-012031_pixal3d_mv_left_rig",
+   "note": "正+侧两视图，ComfyUI int8，上采样 1024",
+   "mesh_in_showcase": true
+  },
+  {
+   "key": "A_hunyuan",
+   "label": "A Hunyuan3D-2mv",
+   "run": "runs/A_native3d/20261008-015845_hunyuan_mv_left_rig",
+   "note": "正+侧两视图，fp16",
+   "mesh_in_showcase": true
+  },
+  {
+   "key": "A_trellis",
+   "label": "A TRELLIS.2",
+   "run": "runs/A_native3d/20261008-021208_trellis2_left_rig",
+   "note": "只用正视图，int8，上采样 1024",
+   "mesh_in_showcase": true
+  },
+  {
+   "key": "B",
+   "label": "B 转台视频→VGGT",
+   "run": "runs/B_video_recon/20261008-000636_vggt_f24_e20_-20",
+   "note": "Blender 渲染两圈转台（±20°），24 帧",
+   "mesh_in_showcase": true
+  },
+  {
+   "key": "A_pixal_tpl",
+   "label": "A Pixal3D-MV（官方模板预处理）",
+   "run": "runs/A_native3d/20261008-004628_pixal3d_mv_left",
+   "note": "消融：逐视图裁剪破坏同尺度",
+   "mesh_in_showcase": false
+  },
+  {
+   "key": "G_D",
+   "label": "G→D Qwen 生成三视图→轮廓雕刻",
+   "run": "runs/D_visual_hull/20261008-004640_res256_gen",
+   "note": "Qwen-Image-2.1 由真值正视图补出侧/顶视图",
+   "mesh_in_showcase": false
+  },
+  {
+   "key": "G_A",
+   "label": "G→A Qwen 生成三视图→Pixal3D",
+   "run": "runs/A_native3d/20261008-030718_pixal3d_mv_left_rig_gen",
+   "note": "同上，生成的正+侧视图喂 Pixal3D",
+   "mesh_in_showcase": false
+  }
+ ],
+ "groups": [
+  {
+   "title": "盲测零件（参数对写脚本的人保密）",
+   "cases": [
+    "blind_00",
+    "blind_01",
+    "blind_02",
+    "blind_03",
+    "blind_04",
+    "blind_05"
+   ],
+   "labels": [
+    "D 三视图轮廓雕刻",
+    "C 闭环·规则 mock",
+    "C 闭环·Claude 代理",
+    "A Pixal3D-MV",
+    "A Hunyuan3D-2mv",
+    "A TRELLIS.2",
+    "B 转台视频→VGGT"
+   ],
+   "per_case": true,
+   "plot": "docs/img/route_compare_blind.png"
+  },
+  {
+   "title": "命名形体（硬表面/家具/建筑/角色/有机体）",
+   "cases": [
+    "bracket",
+    "flange_shaft",
+    "gear",
+    "mug",
+    "table",
+    "chair",
+    "house",
+    "figure",
+    "spot",
+    "bob"
+   ],
+   "labels": [
+    "D 三视图轮廓雕刻",
+    "C 闭环·规则 mock",
+    "A Pixal3D-MV",
+    "A Hunyuan3D-2mv",
+    "A TRELLIS.2",
+    "B 转台视频→VGGT",
+    "G→D Qwen 生成三视图→轮廓雕刻",
+    "G→A Qwen 生成三视图→Pixal3D"
+   ],
+   "per_case": true,
+   "plot": "docs/img/route_compare_named.png"
+  },
+  {
+   "title": "有机体 Spot（唯一一个 Claude 代理也做了的非盲测用例）",
+   "cases": [
+    "spot"
+   ],
+   "labels": [
+    "D 三视图轮廓雕刻",
+    "C 闭环·规则 mock",
+    "C 闭环·Claude 代理",
+    "A Pixal3D-MV",
+    "A Hunyuan3D-2mv",
+    "A TRELLIS.2",
+    "B 转台视频→VGGT"
+   ]
+  },
+  {
+   "title": "预处理消融（Pixal3D-MV，6 个硬表面/家具用例）",
+   "cases": [
+    "bracket",
+    "flange_shaft",
+    "gear",
+    "mug",
+    "table",
+    "chair"
+   ],
+   "labels": [
+    "A Pixal3D-MV",
+    "A Pixal3D-MV（官方模板预处理）"
+   ]
+  }
+ ],
+ "gen": {
+  "edit_run": "runs/G_qwen_views/20261008-001448_edit_steps25_lora0.0",
+  "edit_seed": 1,
+  "edit_show": [
+   "bracket",
+   "mug",
+   "spot",
+   "house"
+  ],
+  "t2i_run": "runs/G_qwen_views/20261008-000929_t2i_steps25_lora0.0",
+  "t2i_show": [
+   "obj00_s0",
+   "obj02_s0",
+   "obj03_s1",
+   "obj04_s0"
+  ]
+ },
+ "loop": {
+  "run": "runs/C_llm_blender/20261007-233505_file_claude-in-loop-b2",
+  "case": "blind_05",
+  "note": "第 1 轮 IoU {loop1:.3f}：底板 +X 端多出一条（蓝），三角筋和方块在 −Y 方向短了一点（红）。第 2 轮按差异图修正后到 {loop2:.3f}，达到停止阈值 0.985。"
+ },
+ "story": {
+  "findings": [
+   {
+    "label": "硬表面 · 盲测 6 件",
+    "big": "CD {blind_C_claude:.4f}",
+    "text": "LLM 写 Blender 代码 + 渲染比对闭环（Claude 代理手动扮演 LLM）。同样的三视图，轮廓雕刻是 {blind_D:.4f}。"
+   },
+   {
+    "label": "有机体 · Spot",
+    "big": "CD {spot_A_pixal:.4f}",
+    "text": "Pixal3D-MV（ComfyUI 原生，正+侧两张图）。用基本体拼的 LLM 闭环只有 {spot_C_claude:.4f}。"
+   },
+   {
+    "label": "视频转台 · 16 件",
+    "big": "CD {all_B:.4f}",
+    "text": "两圈 ±20° 转台视频 → VGGT → TSDF。视频是 Blender 渲染的理想情况，生成视频未测。"
+   },
+   {
+    "label": "Qwen 补出的侧/顶视图",
+    "big": "IoU {gen_side:.2f}/{gen_top:.2f}",
+    "text": "与真值轮廓比。拿这样的三视图去建模，Chamfer 从 {named_D:.4f} 变成 {named_G_D:.4f}。",
+    "warn": true
+   }
+  ],
+  "routes_story": [
+   {
+    "tag": "G",
+    "title": "ComfyUI + Qwen-Image 生成三视图",
+    "user": "用 ComfyUI + Qwen-Image-2.1 生成准确率很高的三视图",
+    "verdict": "能跑，本机 25 步约 25 秒一张。但侧视图、顶视图的几何经常不对，是整条链路的瓶颈。",
+    "pipe": "文字或一张正视图 → <b>Qwen-Image-2.1 int8</b>（ComfyUI）→ 一张三联图 → 切分、去背景、统一尺度 → 一致性检查"
+   },
+   {
+    "tag": "A",
+    "title": "原生多视图 → 3D 模型",
+    "user": "",
+    "verdict": "角色、动物效果最好；硬表面和薄件差。只接受正/侧/背视图，不吃顶视图。",
+    "pipe": "正视图 + 侧视图 → 同尺度黑底预处理 → <b>Pixal3D-MV / Hunyuan3D-2mv / TRELLIS.2</b>（ComfyUI 原生节点，免编译）→ GLB → Blender 简化"
+   },
+   {
+    "tag": "B",
+    "title": "转台视频 → 扫描重建",
+    "user": "Qwen 生成三视图之后，用 MiniMax H3 生成 3D 旋转视频，再做扫描建模",
+    "verdict": "重建这一段很稳（理想视频）。MiniMax H3 客户端已写好，没有 key 未调用，生成视频的一致性是最大未知数。",
+    "pipe": "正视图 → <b>MiniMax H3</b> 转台视频（stub）/ Blender 转台渲染 → 抽 24 帧 → <b>VGGT-1B</b> 估计相机与深度 → TSDF 融合 → 网格"
+   },
+   {
+    "tag": "C",
+    "title": "最强 LLM + Blender + 三视图",
+    "user": "把最强的大语言模型（设想里写作“GPT6 ultra”）和 Blender、三视图配合起来",
+    "verdict": "硬表面最准，产物是可改的参数化脚本。“GPT6 ultra” 不存在，这里用 Claude Code 代理手动扮演 LLM，API 自动闭环待有 key 后跑。",
+    "pipe": "三视图 + 量出的包围盒 → <b>LLM 写 bpy 脚本</b> → 无头 Blender 5.2 建模 → 渲染三视图 → 轮廓差异图 → 反馈重写（≤4 轮）"
+   },
+   {
+    "tag": "D",
+    "title": "三视图轮廓雕刻（对照）",
+    "user": "",
+    "verdict": "不需要任何模型，2–3 秒。凹陷、三角筋、圆柱都会被“雕”错，是所有路线的下限参照。",
+    "pipe": "三张轮廓 → 256³ 体素求交 → marching cubes"
+   },
+   {
+    "tag": "E",
+    "title": "训练成自己的模型",
+    "user": "训练成自己的模型，用模型来建模",
+    "verdict": "合成数据管线已跑通（三视图 ↔ 建模代码配对）。现实的做法是在开源 VLM 上做 LoRA/SFT，不是从零训练 3D 大模型。",
+    "pipe": "随机零件程序 → Blender 建模 → 渲染三视图 → (图, 代码) 配对 → VLM LoRA/SFT → 用本基准评测"
+   }
+  ],
+  "compare": {
+   "head": [
+    "路线",
+    "硬表面",
+    "有机体/角色",
+    "可编辑性",
+    "本机（≈12GB）",
+    "主要风险"
+   ],
+   "rows": [
+    [
+     "C LLM + Blender 闭环",
+     "<span class='q-good'>最好</span>（盲测 CD {blind_C_claude:.4f}）",
+     "<span class='q-bad'>差</span>（Spot {spot_C_claude:.4f}）",
+     "参数化脚本，可改",
+     "能，几乎不占显存",
+     "需要强 LLM 的 API；复杂零件轮数与成本未知"
+    ],
+    [
+     "A Pixal3D-MV",
+     "<span class='q-mid'>一般</span>（盲测 {blind_A_pixal:.4f}）",
+     "<span class='q-good'>最好</span>（Spot {spot_A_pixal:.4f}）",
+     "三角网格",
+     "能，40–130 s/个",
+     "薄件失败；不吃顶视图；需同尺度预处理"
+    ],
+    [
+     "A Hunyuan3D-2mv",
+     "<span class='q-mid'>一般</span>（盲测 {blind_A_hunyuan:.4f}）",
+     "<span class='q-good'>好</span>（Spot {spot_A_hunyuan:.4f}）",
+     "三角网格",
+     "能，约 45 s/个",
+     "许可证地域限制；椅子失败"
+    ],
+    [
+     "A TRELLIS.2（单图）",
+     "<span class='q-bad'>差</span>（盲测 {blind_A_trellis:.4f}）",
+     "<span class='q-mid'>一般</span>（Spot {spot_A_trellis:.4f}）",
+     "三角网格",
+     "能",
+     "只看正视图，深度靠猜"
+    ],
+    [
+     "B 视频 → VGGT",
+     "<span class='q-good'>好</span>（盲测 {blind_B:.4f}）",
+     "<span class='q-mid'>一般</span>（Spot {spot_B:.4f}）",
+     "三角网格",
+     "能，VGGT 峰值 9.9 GB",
+     "生成视频的一致性未测；需要看到底面"
+    ],
+    [
+     "D 轮廓雕刻",
+     "<span class='q-mid'>一般</span>（盲测 {blind_D:.4f}）",
+     "<span class='q-mid'>一般</span>（Spot {spot_D:.4f}）",
+     "体素网格",
+     "能，CPU 2–3 s",
+     "凹陷与三视图歧义无解"
+    ],
+    [
+     "G Qwen 三视图",
+     "—",
+     "—",
+     "图片",
+     "能，约 25 s/张",
+     "侧/顶视图几何不准（IoU {gen_side:.2f}/{gen_top:.2f}）"
+    ]
+   ]
+  },
+  "train": [
+   {
+    "t": "合成数据",
+    "d": "随机零件程序（底板、凸台、三角筋、回转体、孔）→ Blender 建模 → 渲染标准三视图；代码就是标签。本机约 5.4 秒/条，已验证 20 条。"
+   },
+   {
+    "t": "扩大到 10 万条",
+    "d": "放到服务器上多进程跑，估计 1 天内（未实测）。可加入 CadQuery 表达、真实零件库（ABC、Fusion 360 Gallery，需看许可）。"
+   },
+   {
+    "t": "选底座模型",
+    "d": "开源 VLM（4B–8B）做 LoRA/SFT，2×3090 48GB 足够；参考 CAD-Recode：1×H100 约 12 小时训练 1.5B 模型。"
+   },
+   {
+    "t": "蒸馏强 LLM 的闭环轨迹",
+    "d": "用强 LLM 在合成零件上跑闭环，保留成功的（三视图, 脚本, 反馈）序列作为多轮训练数据。"
+   },
+   {
+    "t": "用本基准验收",
+    "d": "盲测零件生成器作 held-out 分布，指标与路线 C 相同：Chamfer、F-score、体积 IoU。"
+   }
+  ],
+  "decide": [
+   {
+    "t": "要不要申请/提供 API key",
+    "d": "路线 C 的自动闭环（Claude 或其他 VLM）和 MiniMax H3 视频都需要 key 才能验证；本项目没有花钱、没有注册。"
+   },
+   {
+    "t": "商用还是研究",
+    "d": "Qwen-Image-2.1 是非商用许可；VGGT-1B 权重 CC-BY-NC-4.0；Hunyuan3D 有地域限制。商用需换 Qwen-Image-Edit-2511（Apache-2.0）和 VGGT 商用版（需申请）。"
+   },
+   {
+    "t": "主攻方向",
+    "d": "建议硬表面走“LLM 写 CAD/Blender 代码”，角色走 Pixal3D/Hunyuan3D；如要做研究贡献，训练“三视图→代码”小模型最可行。"
+   }
+  ]
+ }
+}

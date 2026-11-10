@@ -1,0 +1,17 @@
+# 核心（基准、指标、轮廓雕刻）
+numpy
+scipy
+trimesh
+rtree
+embreex          # trimesh 射线加速（体积 IoU 用）
+scikit-image
+opencv-python-headless
+pillow
+matplotlib
+imageio
+imageio-ffmpeg
+tqdm
+requests
+pyyaml
+# torch 需要单独装支持 Blackwell sm_120 的版本：
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128

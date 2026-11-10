@@ -1,0 +1,189 @@
+{
+ "54": {
+  "class_type": "ImageOnlyCheckpointLoader",
+  "inputs": {
+   "ckpt_name": "hunyuan3d-dit-v2-mv_fp16.safetensors"
+  }
+ },
+ "70": {
+  "class_type": "ModelSamplingAuraFlow",
+  "inputs": {
+   "model": [
+    "54",
+    0
+   ],
+   "shift": 1.0
+  }
+ },
+ "66": {
+  "class_type": "EmptyLatentHunyuan3Dv2",
+  "inputs": {
+   "resolution": 3072,
+   "batch_size": 1
+  }
+ },
+ "l0": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "{{front}}"
+  }
+ },
+ "e0": {
+  "class_type": "CLIPVisionEncode",
+  "inputs": {
+   "clip_vision": [
+    "54",
+    1
+   ],
+   "image": [
+    "l0",
+    0
+   ],
+   "crop": "none"
+  }
+ },
+ "l1": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "{{left}}"
+  }
+ },
+ "e1": {
+  "class_type": "CLIPVisionEncode",
+  "inputs": {
+   "clip_vision": [
+    "54",
+    1
+   ],
+   "image": [
+    "l1",
+    0
+   ],
+   "crop": "none"
+  }
+ },
+ "l2": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "{{back}}"
+  }
+ },
+ "e2": {
+  "class_type": "CLIPVisionEncode",
+  "inputs": {
+   "clip_vision": [
+    "54",
+    1
+   ],
+   "image": [
+    "l2",
+    0
+   ],
+   "crop": "none"
+  }
+ },
+ "l3": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "{{right}}"
+  }
+ },
+ "e3": {
+  "class_type": "CLIPVisionEncode",
+  "inputs": {
+   "clip_vision": [
+    "54",
+    1
+   ],
+   "image": [
+    "l3",
+    0
+   ],
+   "crop": "none"
+  }
+ },
+ "65": {
+  "class_type": "Hunyuan3Dv2ConditioningMultiView",
+  "inputs": {
+   "front": [
+    "e0",
+    0
+   ],
+   "left": [
+    "e1",
+    0
+   ],
+   "back": [
+    "e2",
+    0
+   ],
+   "right": [
+    "e3",
+    0
+   ]
+  }
+ },
+ "3": {
+  "class_type": "KSampler",
+  "inputs": {
+   "model": [
+    "70",
+    0
+   ],
+   "positive": [
+    "65",
+    0
+   ],
+   "negative": [
+    "65",
+    1
+   ],
+   "latent_image": [
+    "66",
+    0
+   ],
+   "seed": 0,
+   "steps": 20,
+   "cfg": 7.5,
+   "sampler_name": "euler",
+   "scheduler": "normal",
+   "denoise": 1.0
+  }
+ },
+ "61": {
+  "class_type": "VAEDecodeHunyuan3D",
+  "inputs": {
+   "samples": [
+    "3",
+    0
+   ],
+   "vae": [
+    "54",
+    2
+   ],
+   "num_chunks": 8000,
+   "octree_resolution": 256
+  }
+ },
+ "82": {
+  "class_type": "VoxelToMesh",
+  "inputs": {
+   "voxel": [
+    "61",
+    0
+   ],
+   "algorithm": "surface net",
+   "threshold": 0.6
+  }
+ },
+ "83": {
+  "class_type": "SaveGLB",
+  "inputs": {
+   "mesh": [
+    "82",
+    0
+   ],
+   "filename_prefix": "p6_hy3d_mv"
+  }
+ }
+}

@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function () { try { if (Math.min(screen.width, screen.height) < 700) { document.querySelector('meta[name=viewport]').setAttribute('content', 'width=1600'); document.documentElement.classList.add('phone'); } } catch (e) {} })();</script>
+<title>三视图到三维：自动演示</title>
+<style>
+/* 一键演示页：全屏、离线、自动播放。素材全部来自已有运行结果（showcase/assets + demo/assets），不调用任何模型。 */
+:root {
+  --paper: #eef1ee; --sheet: #fbfcfa; --ink: #1b2220; --ink-2: #4e5955; --rule: #c8cfca;
+  --accent: #0d6b70; --accent-ink: #fff; --mark: #b45309; --good: #1f7a3a; --bad: #b42318;
+  --bar: #2a78d6; --bar-dim: #9fb6cf; --vp-bg: #e3e8e4; --code-bg: #f4f6f3;
+  --font-body: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+  --font-data: "Cascadia Mono", "Consolas", "Menlo", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1312; --sheet: #161b1a; --ink: #e5ebe8; --ink-2: #a7b2ad; --rule: #2e3835;
+    --accent: #4fb3b9; --accent-ink: #0b1514; --mark: #e0a04a; --good: #5fc27a; --bad: #f07a6e;
+    --bar: #3987e5; --bar-dim: #3d5675; --vp-bg: #1c2321; --code-bg: #111615; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f1312; --sheet: #161b1a; --ink: #e5ebe8; --ink-2: #a7b2ad; --rule: #2e3835;
+  --accent: #4fb3b9; --accent-ink: #0b1514; --mark: #e0a04a; --good: #5fc27a; --bad: #f07a6e;
+  --bar: #3987e5; --bar-dim: #3d5675; --vp-bg: #1c2321; --code-bg: #111615; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+.rotate-hint { display: none; }
+@media (orientation: portrait) { html.phone .rotate-hint { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 99; background: var(--accent); color: var(--accent-ink); font-size: 56px; text-align: center; padding: 28px 16px; } }
+html, body { height: 100%; margin: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; }
+button { font-family: inherit; }
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.label { font-family: var(--font-data); font-size: 12px; letter-spacing: .06em; color: var(--ink-2); }
+
+/* 顶栏 */
+.bar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--sheet); border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.bar h1 { font-size: 17px; margin: 0; font-weight: 700; white-space: nowrap; }
+.chapters { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.chapters button { border: 1px solid var(--rule); background: transparent; color: var(--ink-2); padding: 3px 10px; font-size: 13px; cursor: pointer; border-radius: 3px; }
+.chapters button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.ctl { display: flex; gap: 6px; align-items: center; }
+.ctl button { border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); min-width: 36px; height: 32px; cursor: pointer; border-radius: 3px; font-size: 14px; padding: 0 8px; }
+.ctl button[aria-pressed="true"] { background: var(--mark); color: #fff; border-color: var(--mark); }
+.ctl select { height: 32px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+.progress { height: 4px; background: var(--rule); }
+.progress > div { height: 100%; width: 0; background: var(--accent); }
+
+/* 舞台 */
+.stage { position: relative; min-height: 0; overflow: hidden; }
+.scene { position: absolute; inset: 0; padding: 18px 22px; display: none; gap: 16px; min-height: 0; }
+.scene.active { display: grid; animation: fadein .5s ease; }
+@keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+.stitle { font-size: 26px; font-weight: 700; margin: 0; line-height: 1.25; }
+.ssub { color: var(--ink-2); margin: 0; font-size: 15px; }
+.panel { background: var(--sheet); border: 1px solid var(--rule); padding: 12px; min-width: 0; min-height: 0; }
+.vp { background: var(--vp-bg); position: relative; min-height: 0; min-width: 0; border: 1px solid var(--rule); }
+.vp .nopub { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; font-size: 13px; line-height: 1.6; color: var(--ink-2); padding: 8px; }
+.vp .vh { position: absolute; left: 8px; top: 6px; font-size: 13px; font-weight: 600; z-index: 4; }
+.vp .vm { position: absolute; left: 8px; bottom: 6px; right: 8px; font-family: var(--font-data); font-size: 12px; color: var(--ink-2); display: flex; gap: 10px; flex-wrap: wrap; opacity: 0; transition: opacity .6s; z-index: 4; }
+.vp .vm.show { opacity: 1; }
+.vp .vmiss { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); font-size: 13px; }
+.views3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.views3 figure, .vstack figure { margin: 0; display: grid; gap: 2px; min-width: 0; }
+.views3 img, .vstack img { width: 100%; height: auto; background: #fff; border: 2px solid var(--rule); transition: border-color .3s, transform .3s; }
+.views3 figcaption, .vstack figcaption { font-size: 12px; color: var(--ink-2); }
+.vstack img { width: auto; max-width: 100%; max-height: calc((100vh - 330px) / 3); }
+.loopv img { max-height: calc((100vh - 400px) / 3); }
+img.hot { border-color: var(--mark) !important; transform: scale(1.03); }
+.pop { opacity: 0; transform: scale(.96); transition: opacity .5s, transform .5s; }
+.pop.in { opacity: 1; transform: none; }
+
+/* 开场 */
+.routes5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.rcard { background: var(--sheet); border: 1px solid var(--rule); border-top: 4px solid var(--accent); padding: 10px 12px; display: grid; gap: 6px; align-content: start; }
+.rcard .tag { font-size: 34px; font-weight: 800; color: var(--accent); line-height: 1; }
+.rcard h3 { margin: 0; font-size: 16px; }
+.rcard p { margin: 0; font-size: 13px; color: var(--ink-2); }
+.kind { display: inline-block; font-size: 12px; padding: 1px 6px; border-radius: 3px; border: 1px solid currentColor; width: fit-content; }
+.kind.trad { color: var(--good); } .kind.dl { color: var(--bar); } .kind.llm { color: var(--mark); }
+
+/* 代码 */
+pre.code { margin: 0; background: var(--code-bg); border: 1px solid var(--rule); padding: 10px; font-family: var(--font-data); font-size: 12.5px; line-height: 1.5; overflow: hidden; white-space: pre-wrap; word-break: break-all; min-height: 0; }
+pre.code .chg { background: color-mix(in srgb, var(--mark) 22%, transparent); }
+.caret { display: inline-block; width: 7px; height: 1em; background: var(--accent); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.meter { display: grid; grid-template-columns: 3.5em minmax(0, 1fr) 4em; gap: 6px; align-items: center; font-size: 13px; }
+.meter .trk { height: 10px; background: var(--rule); position: relative; }
+.meter .fil { position: absolute; inset: 0 auto 0 0; background: var(--bar); width: 0; transition: width .8s ease; }
+.meter .thr { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--mark); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chips span { font-size: 12px; padding: 2px 8px; border: 1px solid var(--rule); border-radius: 10px; }
+.chips span.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+/* 结论 */
+.chart { display: grid; gap: 5px; }
+.chart .row { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr) 4em; gap: 8px; align-items: center; font-size: 13px; }
+.chart .trk { height: 14px; border-left: 1px solid var(--rule); position: relative; }
+.chart .fil { position: absolute; left: 0; top: 1px; bottom: 1px; background: var(--bar); width: 0; transition: width 1.2s ease; border-radius: 0 4px 4px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { border-bottom: 1px solid var(--rule); padding: 5px 8px; text-align: left; vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; }
+.q-good { color: var(--good); font-weight: 600; } .q-bad { color: var(--bad); font-weight: 600; } .q-mid { color: var(--mark); font-weight: 600; }
+.warnbox { border-left: 4px solid var(--mark); padding: 6px 10px; background: var(--sheet); font-size: 13px; }
+
+/* 字幕 */
+.caption { background: var(--sheet); border-top: 1px solid var(--rule); padding: 10px 18px 12px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; min-height: 92px; }
+.caption .step { font-family: var(--font-data); font-size: 12px; color: var(--ink-2); white-space: nowrap; padding-top: 3px; }
+.caption .txt { font-size: 18px; line-height: 1.6; }
+.caption .txt b { color: var(--accent); }
+.caption .hint { grid-column: 2; font-size: 12px; color: var(--ink-2); }
+.err { position: fixed; left: 12px; bottom: 12px; z-index: 10; background: var(--bad); color: #fff; padding: 8px 12px; font-size: 13px; max-width: 60ch; }
+@media (max-width: 900px) {
+  .routes5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scene { overflow-y: auto; }
+  .caption .txt { font-size: 15px; }
+}
+</style>
+</head>
+<body>
+<div class="rotate-hint">手机请横过来查看（本页按 16:9 投影设计）</div>
+<div class="bar">
+  <h1>三视图 → 三维：自动演示</h1>
+  <nav class="chapters" id="chapters" aria-label="章节"></nav>
+  <div class="ctl">
+    <button id="b-prev" title="上一步（←）" aria-label="上一步">◀</button>
+    <button id="b-play" title="播放 / 暂停（空格）" aria-label="播放或暂停">❚❚</button>
+    <button id="b-next" title="下一步（→）" aria-label="下一步">▶</button>
+    <button id="b-auto" aria-pressed="true" title="自动讲解：每步讲完自动进入下一步">自动讲解</button>
+    <button id="b-voice" aria-pressed="false" title="用系统语音朗读字幕（需要系统装有中文语音）">朗读</button>
+    <select id="b-speed" aria-label="播放速度">
+      <option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
+    </select>
+  </div>
+</div>
+<div class="progress"><div id="prog"></div></div>
+<main class="stage" id="stage">
+  <canvas id="gl"></canvas>
+</main>
+<div class="caption" aria-live="polite">
+  <div class="step" id="cap-step"></div>
+  <div class="txt" id="cap-txt"></div>
+  <div class="hint">空格 暂停/继续 · ← → 上一步/下一步 · 1–6 跳章节 · F11 全屏 · 拖动 3D 视窗可转视角 · <b>输入全部是合成数据</b>（程序化形体与 CC0 模型的 Blender 渲染图）</div>
+  <div class="hint">Shuyao Gao · aSSIST University · AI 教学演示案例 / AI Teaching Demos · 代码 MIT，文档 CC BY 4.0</div>
+</div>
+
+<script src="../showcase/assets/vendor/three.min.js"></script>
+<script src="../showcase/assets/vendor/GLTFLoader.js"></script>
+<script src="../showcase/assets/data.js"></script>
+<script src="../showcase/assets/meshes.js"></script>
+<script src="assets/demo_data.js"></script>
+<script src="assets/loop_meshes.js"></script>
+<script>
+(function () {
+  "use strict";
+  const D = window.P6DATA, P = window.P6DEMO, MESH = window.P6MESH || {}, LMESH = window.P6LOOPMESH || {};
+  const $ = (s, el = document) => el.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const f2 = (v) => (v == null ? "—" : Number(v).toFixed(2));
+  const f3 = (v) => (v == null ? "—" : Number(v).toFixed(3));
+  const f4 = (v) => (v == null ? "—" : Number(v).toFixed(4));
+  const SC = "../showcase/";
+  const stage = $("#stage");
+  function fail(msg) { const d = document.createElement("div"); d.className = "err"; d.textContent = msg; document.body.appendChild(d); }
+  if (!D || !P) { fail("素材没有加载：请先确认 showcase/assets/data.js 与 demo/assets/demo_data.js 存在（见 DEMO_GUIDE.md）。"); return; }
+  if (!window.P6MESH) fail("showcase/assets/meshes.js 不存在，3D 结果无法显示。运行 showcase/build_assets.py 重建（见 DEMO_GUIDE.md）。");
+
+  const V = D.viewer;
+  // showcase 的查看器没有收 C_claude 的盲测网格时，用闭环回放里最后一轮的网格和该用例的最终指标补上
+  const claudeLoop = (c) => (window.P6DEMO ? window.P6DEMO.loops.find((l) => l.id.startsWith("claude_") && l.case === c) : null);
+  const M = (c, r) => (V.cases[c] && V.cases[c].metrics[r]) || (r === "C_claude" && claudeLoop(c) ? claudeLoop(c).final : null);
+  const SUMB = Object.fromEntries(D.summary.blind.map((r) => [r.label, r]));
+  const SUMN = Object.fromEntries(D.summary.named.map((r) => [r.label, r]));
+  const LBL = Object.fromEntries(V.routes.map((r) => [r.key, r.label]));
+  const LOOP = Object.fromEntries(P.loops.map((l) => [l.id, l]));
+  const VNAME = { front: "正视图", side: "侧视图", top: "顶视图" };
+  const CASENAME = { bracket: "L 形支架", gear: "齿轮", chair: "椅子", mug: "杯子", house: "房子", spot: "奶牛 Spot", figure: "人偶", blind_01: "盲测零件 01", blind_05: "盲测零件 05" };
+
+  // ================= 3D：一个 WebGL 上下文，按 DOM 视窗位置用 scissor 分区绘制 =================
+  const HAS3D = !!window.THREE;
+  let R = null, loader = null;
+  const meshCache = {};
+  let VPS = [];
+  const view = { yaw: 0.6, pitch: 0.42, auto: true, dist: 4.6 };
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  if (HAS3D) {
+    try {
+      R = new THREE.WebGLRenderer({ canvas: $("#gl"), antialias: true, alpha: true });
+      R.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      R.setScissorTest(true);
+      R.localClippingEnabled = true;
+      loader = new THREE.GLTFLoader();
+    } catch (e) { R = null; fail("浏览器没有开启 WebGL，3D 视窗不可用；图片和字幕照常播放。"); }
+  } else fail("three.js 没有加载（showcase/assets/vendor/three.min.js），3D 视窗不可用。");
+
+  function b64ToBuf(b64) { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
+  function loadMesh(src, key) {
+    const k = (src === LMESH ? "L:" : "M:") + key;
+    if (meshCache[k] !== undefined) return Promise.resolve(meshCache[k]);
+    return new Promise((res) => {
+      const b64 = src[key];
+      if (!b64 || !loader) { meshCache[k] = null; return res(null); }
+      loader.parse(b64ToBuf(b64), "", (g) => {
+        g.scene.traverse((m) => { if (m.isMesh) m.geometry.computeVertexNormals(); });
+        meshCache[k] = g.scene; res(g.scene);
+      }, () => { meshCache[k] = null; res(null); });
+    });
+  }
+  function baseScene() {
+    const s = new THREE.Scene();
+    s.add(new THREE.HemisphereLight(0xffffff, 0x6a7570, 0.95));
+    const d = new THREE.DirectionalLight(0xffffff, 0.75); d.position.set(2, 3, 4); s.add(d);
+    const root = new THREE.Group(); s.add(root);
+    return { s, root };
+  }
+  const now = () => performance.now() / 1000;
+
+  // 生长方式 1：剖切平面自下而上扫过 + 透明度渐入
+  function addMeshVP(el, obj, opt = {}) {
+    if (!R || !obj) return null;
+    const { s, root } = baseScene();
+    const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), -1.2);
+    const color = new THREE.Color(opt.color || css("--accent") || "#0d6b70");
+    const mats = [];
+    const c = obj.clone(true);
+    c.traverse((m) => {
+      if (m.isMesh) {
+        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0, side: THREE.DoubleSide,
+          clippingPlanes: opt.grow === false ? [] : [plane], transparent: true, opacity: opt.ghost ? 0.18 : 0, depthWrite: !opt.ghost });
+        m.material = mat; mats.push(mat);
+      }
+    });
+    root.add(c);
+    let ring = null;
+    if (opt.grow !== false) {
+      ring = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ color: new THREE.Color(css("--mark") || "#b45309"), transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
+      ring.rotation.x = -Math.PI / 2; ring.visible = false; root.add(ring);
+    }
+    const vp = { el, s, root, t0: now() + (opt.delay || 0), dur: opt.dur || 3.2, done: false,
+      update(t) {
+        if (opt.ghost) return;
+        const p = Math.min(1, Math.max(0, (t - this.t0) / this.dur));
+        if (opt.grow === false) { mats.forEach((m) => (m.opacity = Math.min(1, p * 2))); return; }
+        plane.constant = -1.0 + 2.1 * p;
+        mats.forEach((m) => { m.opacity = Math.min(1, p * 2.5); if (m.transparent !== p < 1) { m.transparent = p < 1; m.needsUpdate = true; } });
+        if (ring) { ring.visible = p > 0 && p < 1; ring.position.y = plane.constant; }
+        if (p >= 1 && !this.done) { this.done = true; opt.onDone && opt.onDone(); }
+      } };
+    if (opt.ghostObj) {
+      const g = opt.ghostObj.clone(true);
+      g.traverse((m) => { if (m.isMesh) m.material = new THREE.MeshBasicMaterial({ color: new THREE.Color(css("--ink-2") || "#4e5955"), wireframe: true, transparent: true, opacity: 0.32 }); });
+      root.add(g);
+    }
+    VPS.push(vp); return vp;
+  }
+
+  // ================= 轮廓雕刻（visual hull）：在浏览器里用三张轮廓掩码现场计算 =================
+  const carveCache = {};
+  function carve(cs) {
+    if (carveCache[cs]) return carveCache[cs];
+    const N = P.N, m = P.masks[cs];
+    const bit = (s, r, c) => s.charCodeAt(r * N + c) === 49;
+    const F = (i, k) => bit(m.front, N - 1 - k, i);   // 正视图：右 = +X，上 = +Z
+    const S = (j, k) => bit(m.side, N - 1 - k, j);    // 侧视图：右 = +Y，上 = +Z
+    const T = (i, j) => bit(m.top, N - 1 - j, i);     // 顶视图：右 = +X，上 = +Y
+    let jmin = N, jmax = -1;
+    for (let j = 0; j < N; j++) for (let k = 0; k < N; k++) if (S(j, k)) { jmin = Math.min(jmin, j); jmax = Math.max(jmax, j); }
+    const n3 = N * N * N, idx = (i, j, k) => (k * N + j) * N + i;
+    const E = new Uint8Array(n3), ES = new Uint8Array(n3), EST = new Uint8Array(n3);
+    for (let k = 0; k < N; k++) for (let j = jmin; j <= jmax; j++) for (let i = 0; i < N; i++) {
+      if (!F(i, k)) continue; const q = idx(i, j, k); E[q] = 1;
+      if (S(j, k)) { ES[q] = 1; if (T(i, j)) EST[q] = 1; }
+    }
+    function surface(A) {
+      const out = [];
+      for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        if (!A[idx(i, j, k)]) continue;
+        if (i === 0 || j === 0 || k === 0 || i === N - 1 || j === N - 1 || k === N - 1 ||
+          !A[idx(i - 1, j, k)] || !A[idx(i + 1, j, k)] || !A[idx(i, j - 1, k)] || !A[idx(i, j + 1, k)] || !A[idx(i, j, k - 1)] || !A[idx(i, j, k + 1)]) out.push([i, j, k]);
+      }
+      return out;
+    }
+    let cnt = 0; for (let q = 0; q < n3; q++) cnt += EST[q];
+    carveCache[cs] = { N, E: surface(E), ES: surface(ES), EST: surface(EST), nFinal: cnt };
+    return carveCache[cs];
+  }
+  // 生长方式 2：体素按某个方向逐层出现
+  function voxMesh(list, sortKey, color, opacity) {
+    const N = P.N, h = 2 / N;
+    const arr = list.slice().sort((a, b) => sortKey(a) - sortKey(b));
+    const geo = new THREE.BoxGeometry(h * 0.94, h * 0.94, h * 0.94);
+    const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), roughness: 0.7, transparent: opacity < 1, opacity, depthWrite: opacity >= 1 });
+    const im = new THREE.InstancedMesh(geo, mat, Math.max(1, arr.length));
+    const m4 = new THREE.Matrix4();
+    arr.forEach(([i, j, k], n) => {
+      const x = -1 + (i + 0.5) * h, y = -1 + (j + 0.5) * h, z = -1 + (k + 0.5) * h;
+      m4.makeTranslation(x, z, -y); im.setMatrixAt(n, m4);   // Blender Z-up → three Y-up
+    });
+    im.count = 0; im.userData.n = arr.length;
+    return im;
+  }
+  function addVoxVP(el, cs, stages, opt = {}) {
+    if (!R) return null;
+    const { s, root } = baseScene();
+    const C = carve(cs);
+    const ims = stages.map((st) => { const im = voxMesh(C[st.set], st.key, st.color, 1); root.add(im); return im; });
+    const vp = { el, s, root, t0: now() + (opt.delay || 0), stages, ims, cur: -1,
+      update(t) {
+        let acc = this.t0;
+        for (let q = 0; q < stages.length; q++) {
+          const st = stages[q], im = ims[q];
+          const p = Math.min(1, Math.max(0, (t - acc) / st.dur));
+          im.count = Math.floor(p * im.userData.n);
+          // 后一阶段开始后，前一阶段变成半透明“幽灵”
+          const nextStarted = q < stages.length - 1 && t > acc + st.dur + st.hold;
+          if (im.material.transparent !== nextStarted) { im.material.transparent = nextStarted; im.material.depthWrite = !nextStarted; im.material.needsUpdate = true; }
+          im.material.opacity = nextStarted ? 0.08 : 1;
+          if (t >= acc && this.cur < q) { this.cur = q; st.onStart && st.onStart(); }
+          acc += st.dur + st.hold;
+        }
+        if (t > acc && !this.done) { this.done = true; opt.onDone && opt.onDone(); }
+      } };
+    VPS.push(vp); return vp;
+  }
+
+  // 拖动旋转
+  let drag = null;
+  stage.addEventListener("pointerdown", (e) => { if (e.target.closest(".vp")) { drag = { x: e.clientX, y: e.clientY }; view.auto = false; } });
+  window.addEventListener("pointermove", (e) => { if (!drag) return; view.yaw -= (e.clientX - drag.x) * 0.01; view.pitch = Math.max(-0.2, Math.min(1.3, view.pitch + (e.clientY - drag.y) * 0.01)); drag = { x: e.clientX, y: e.clientY }; });
+  window.addEventListener("pointerup", () => { if (drag) { drag = null; setTimeout(() => (view.auto = true), 2500); } });
+
+  const cam = HAS3D ? new THREE.PerspectiveCamera(30, 1, 0.01, 100) : null;
+  let lastT = now();
+  function frame() {
+    const t = now(), dt = t - lastT; lastT = t;
+    if (R) {
+      if (view.auto && playing) view.yaw += dt * 0.45;
+      const rect = stage.getBoundingClientRect();
+      const w = Math.floor(rect.width), h = Math.floor(rect.height);
+      const pr = R.getPixelRatio();
+      if (R.domElement.width !== Math.floor(w * pr) || R.domElement.height !== Math.floor(h * pr)) R.setSize(w, h, false);
+      R.setScissor(0, 0, w, h); R.setClearColor(0x000000, 0); R.clear();
+      cam.position.set(view.dist * Math.cos(view.pitch) * Math.sin(view.yaw), view.dist * Math.sin(view.pitch), view.dist * Math.cos(view.pitch) * Math.cos(view.yaw));
+      cam.lookAt(0, 0, 0);
+      for (const v of VPS) {
+        v.update && v.update(t);
+        const r = v.el.getBoundingClientRect();
+        const x = r.left - rect.left + 1, y = rect.bottom - r.bottom + 1, vw = r.width - 2, vh = r.height - 2;
+        if (vw < 8 || vh < 8 || r.bottom < rect.top || r.top > rect.bottom) continue;
+        R.setViewport(x, y, vw, vh); R.setScissor(x, y, vw, vh);
+        cam.aspect = vw / vh; cam.updateProjectionMatrix();
+        const k = Math.max(1, 1 / cam.aspect) * (v.zoom || 1);
+        cam.position.set(view.dist * k * Math.cos(view.pitch) * Math.sin(view.yaw), view.dist * k * Math.sin(view.pitch), view.dist * k * Math.cos(view.pitch) * Math.cos(view.yaw));
+        cam.lookAt(0, 0, 0);
+        R.render(v.s, cam);
+      }
+    }
+    tick(t);
+    requestAnimationFrame(frame);
+  }
+  function clear3D() {
+    for (const v of VPS) v.s.traverse((o) => { if (o.isInstancedMesh) { o.geometry.dispose(); o.material.dispose(); } else if (o.isMesh && o.material) { o.material.dispose && o.material.dispose(); } });
+    VPS = [];
+  }
+
+  // ================= 场景构造 =================
+  const timers = [];
+  const later = (s, fn) => timers.push(setTimeout(fn, (s * 1000) / speed));
+  function clearTimers() { while (timers.length) clearTimeout(timers.pop()); }
+  function scene(html, cls = "") {
+    stage.querySelectorAll(".scene").forEach((n) => n.remove());
+    const d = document.createElement("section");
+    d.className = "scene active " + cls; d.innerHTML = html;
+    stage.insertBefore(d, $("#gl"));
+    return d;
+  }
+  const vimg = (c, v) => (V.cases[c] ? SC + V.cases[c].views[v] : "");
+  const views3 = (c, cls = "views3") => `<div class="${cls}">${["front", "side", "top"].map((v) => `<figure><img data-v="${v}" src="${vimg(c, v)}" alt="${esc(c)} ${VNAME[v]}"><figcaption>${VNAME[v]}</figcaption></figure>`).join("")}</div>`;
+  const metr = (m) => (m ? `<span>CD ${f4(m.chamfer)}</span><span>F ${f3(m["fscore@0.02"])}</span><span>体积IoU ${f3(m.vol_iou)}</span>` : "");
+
+  function sceneTitle() {
+    const R5 = [
+      ["D", "轮廓雕刻", "trad", "传统几何算法", "三张轮廓沿视线方向拉伸后求交，不需要任何训练。"],
+      ["C", "LLM 写 Blender 代码 + 渲染比对", "llm", "大语言模型 + 程序化建模", "模型写建模脚本，Blender 渲染三视图和目标比，差异图发回去再改。"],
+      ["A", "原生多视图→3D 生成模型", "dl", "深度学习 · 扩散 / 流模型", "Pixal3D、Hunyuan3D、TRELLIS.2：从图像直接生成 3D 形状。"],
+      ["B", "转台视频 → VGGT → TSDF", "dl", "深度学习 + 传统体积融合", "前馈网络一次算出相机和深度，再把深度融合成体积。"],
+      ["G", "扩散模型画三视图", "dl", "深度学习 · 扩散模型", "Qwen-Image-2.1：给正视图，让它补侧视图和顶视图。"],
+    ];
+    return scene(`<div style="display:grid;gap:18px;align-content:center;max-width:1200px;margin:0 auto;width:100%">
+      <div class="label">p6-multiview-3d · ${D.n_cases} 个有真值的物体 · 全部为已有运行结果的回放</div>
+      <h2 class="stitle" style="font-size:40px">AI 三视图 → 3D 建模：五条路线，同一把尺子</h2>
+      <p class="ssub" style="font-size:18px;max-width:60em">给一个物体的正视图、侧视图、顶视图，能不能自动变回三维模型？我们把五种做法放在同一个基准上量了一遍。</p>
+      <div class="routes5">${R5.map((r, i) => `<div class="rcard pop" data-i="${i}"><span class="tag">${r[0]}</span><h3>${esc(r[1])}</h3><span class="kind ${r[2]}">${esc(r[3])}</span><p>${esc(r[4])}</p></div>`).join("")}</div>
+    </div>`);
+  }
+
+  const STEPS = [];
+  const CH = ["开场", "三视图不唯一", "各路线对比", "LLM 闭环回放", "Qwen 画的三视图", "结论"];
+  function step(ch, title, dur, enter, say) { STEPS.push({ ch, title, dur, enter, say }); }
+
+  // ---- 第 1 章 开场
+  step(0, "五条路线", 16, () => {
+    const d = sceneTitle();
+    d.querySelectorAll(".rcard").forEach((n, i) => later(0.6 + i * 1.1, () => n.classList.add("in")));
+  }, () => `问题：给一个物体的<b>三视图</b>，能不能自动建出三维模型？我们试了五条路线：<b>轮廓雕刻</b>是纯几何算法；<b>LLM 写 Blender 代码</b>靠大语言模型；<b>原生 3D 生成模型、视频重建、Qwen 画三视图</b>都是深度学习。`);
+
+  step(0, "基准与指标", 15, () => {
+    const d = scene(`<div style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;min-height:0">
+      <div class="panel" style="display:grid;grid-template-rows:auto minmax(0,1fr);gap:8px"><div class="label">基准：${D.n_cases} 个物体（10 个命名形体 + 6 个参数保密的盲测零件）</div>
+        <img src="../docs/img/bench_overview.png" alt="基准总览" style="width:100%;height:100%;object-fit:contain;min-height:0;background:#fff"></div>
+      <div style="display:grid;gap:12px;align-content:start">
+        <h2 class="stitle">怎么打分</h2>
+        <div class="panel pop"><b>Chamfer 距离（CD）</b><p class="ssub">两个表面上的点，平均离对方最近的点有多远。越小越好。物体最长边 = 1.6。</p></div>
+        <div class="panel pop"><b>F-score@0.02</b><p class="ssub">距离在 0.02 以内算“对上了”，既看准不准，也看全不全。越大越好。</p></div>
+        <div class="panel pop"><b>体积 IoU</b><p class="ssub">两个实体重叠部分 ÷ 合起来的部分。空心、凹槽对不对，主要看它。</p></div>
+        <div class="panel pop"><b>轮廓 IoU</b><p class="ssub">只比三张投影图。<b>轮廓对上 ≠ 三维对上</b>，这是整场演示的主线。</p></div>
+      </div></div>`);
+    d.querySelectorAll(".pop").forEach((n, i) => later(1 + i * 2.2, () => n.classList.add("in")));
+  }, () => `我们做了 <b>${D.n_cases}</b> 个有真值的物体，其中 6 个盲测零件由随机程序生成，参数没给写脚本的人看过。打分用四个指标：Chamfer 距离看表面差多远，F-score 看对上多少，体积 IoU 看实体重叠，轮廓 IoU 只看三张投影。`);
+
+  // ---- 第 2 章 三视图不唯一（杯子）
+  function carveScene(cs, withGT) {
+    const d = scene(`<div style="display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,2fr) ${withGT ? "minmax(0,1.2fr)" : ""};gap:14px;min-height:0">
+      <div style="display:grid;gap:8px;align-content:start;min-height:0"><h2 class="stitle">${esc(CASENAME[cs] || cs)}：输入的三视图</h2>${views3(cs, "vstack")}</div>
+      <div class="vp" id="vp-main"><span class="vh" id="carve-stage">轮廓雕刻</span><div class="vm show" id="carve-note"></div></div>
+      ${withGT ? `<div style="display:grid;grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:10px;min-height:0"><div class="vp" id="vp-gt"><span class="vh">真值</span></div><div class="vp" id="vp-d"><span class="vh">轮廓雕刻结果（离线 256³）</span><div class="vm" id="vm-d">${metr(M(cs, "D"))}</div></div></div>` : ""}
+    </div>`);
+    d.querySelector(".vstack").style.cssText = "display:grid;gap:6px;grid-template-columns:repeat(3,minmax(0,1fr))";
+    return d;
+  }
+  step(1, "杯子：输入三视图", 9, () => {
+    const d = scene(`<div style="display:grid;gap:14px;align-content:center;max-width:1100px;margin:0 auto;width:100%">
+      <h2 class="stitle">先看输入：杯子的三视图</h2>
+      <p class="ssub">第三角投影：正视图从前往后看，侧视图从右往左看，顶视图从上往下看。三张图同一尺度。</p>${views3("mug")}
+      <div class="warnbox pop" id="q">问题：从这三张图，你能看出杯子里面是空的吗？</div></div>`);
+    d.querySelectorAll("img").forEach((n, i) => { n.classList.add("pop"); later(0.4 + i * 0.9, () => n.classList.add("in")); });
+    later(4.5, () => $("#q").classList.add("in"));
+  }, () => `先看输入。这是杯子的正视图、侧视图和顶视图。请大家想一想：<b>只看这三张轮廓</b>，能不能判断杯子里面是空的？`);
+
+  step(1, "杯子：现场轮廓雕刻", 20, () => {
+    const d = carveScene("mug", false);
+    const C = carve("mug");
+    const imgs = d.querySelectorAll("img");
+    const hot = (v) => imgs.forEach((n) => n.classList.toggle("hot", n.dataset.v === v));
+    const note = $("#carve-note"), lab = $("#carve-stage");
+    const sets = [
+      { set: "E", key: (a) => a[1], color: css("--bar-dim") || "#9fb6cf", dur: 3.2, hold: 1.2, onStart() { hot("front"); lab.textContent = "① 正视图轮廓沿 Y 方向拉伸"; note.textContent = `表面体素 ${C.E.length}`; } },
+      { set: "ES", key: (a) => -a[0], color: css("--bar") || "#2a78d6", dur: 3.2, hold: 1.2, onStart() { hot("side"); lab.textContent = "② 用侧视图轮廓再切一刀（求交）"; note.textContent = `表面体素 ${C.ES.length}`; } },
+      { set: "EST", key: (a) => a[2], color: css("--mark") || "#b45309", dur: 4.5, hold: 0, onStart() { hot("top"); lab.textContent = "③ 用顶视图轮廓切第三刀，自下而上逐层出现"; note.textContent = `${P.N}³ 体素，结果实心体素 ${C.nFinal}`; } },
+    ];
+    addVoxVP($("#vp-main"), "mug", sets, { delay: 0.6, onDone() { hot(null); lab.textContent = "轮廓雕刻完成：三张轮廓都能“解释”的最大形体"; } });
+  }, () => `轮廓雕刻（visual hull）是<b>纯几何算法，不是机器学习</b>：把正视图轮廓沿视线拉成柱体，再用侧视图、顶视图各切一刀，三张轮廓都覆盖的体素留下。这里是浏览器用 ${P.N}³ 体素现场算的，项目里用 256³，每件约 2.6 秒。`);
+
+  step(1, "杯子：和真值比", 14, () => {
+    carveScene("mug", true);
+    const C = carve("mug");
+    $("#carve-stage").textContent = "轮廓雕刻（现场 " + P.N + "³）";
+    addVoxVP($("#vp-main"), "mug", [{ set: "EST", key: (a) => a[2], color: css("--mark") || "#b45309", dur: 2.5, hold: 0 }], {});
+    Promise.all([loadMesh(MESH, "mug/gt"), loadMesh(MESH, "mug/D")]).then(([g, dm]) => {
+      addMeshVP($("#vp-gt"), g, { color: css("--ink-2"), delay: 0.3 });
+      addMeshVP($("#vp-d"), dm, { delay: 1.5, onDone: () => $("#vm-d").classList.add("show") });
+    });
+    $("#carve-note").textContent = `实心体素 ${C.nFinal}`;
+  }, () => {
+    const m = M("mug", "D");
+    return `和真值比：轮廓雕刻把杯子的<b>内腔填实了</b>，体积 IoU 只有 <b>${f3(m && m.vol_iou)}</b>。三视图对得上，三维却不对，这就是“三视图不唯一”：凹进去、从三个方向都看不见的部分，轮廓里没有信息。`;
+  });
+
+  // ---- 第 3 章 各路线并排
+  const GRID_ROUTES = ["gt", "D", "C_claude", "C_mock", "A_pixal", "A_hunyuan", "A_trellis", "B"];
+  function compareStep(cs, dur, say) {
+    step(2, `${CASENAME[cs] || cs}：各路线并排`, dur, () => {
+      const routes = GRID_ROUTES.filter((r) => r === "gt" || MESH[cs + "/" + r] || (r === "C_claude" && claudeLoop(cs)) || (r === "A_hunyuan" && M(cs, r)));
+      const cols = routes.length > 6 ? 4 : 3;
+      const d = scene(`<div style="display:grid;grid-template-columns:minmax(150px,0.55fr) minmax(0,3fr);gap:14px;min-height:0">
+        <div style="display:grid;gap:8px;align-content:start;min-height:0"><h2 class="stitle" style="font-size:22px">${esc(CASENAME[cs] || cs)}</h2><div class="label">输入三视图</div>${views3(cs, "vstack")}</div>
+        <div style="display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:8px;min-height:0">
+          ${routes.map((r) => `<div class="vp" data-r="${r}"><span class="vh">${esc(LBL[r] || r)}</span><div class="vm">${r === "gt" ? "<span>真值</span>" : metr(M(cs, r))}</div></div>`).join("")}
+        </div></div>`);
+      d.querySelectorAll(".vstack img").forEach((n, i) => { n.classList.add("pop"); later(0.2 + i * 0.5, () => n.classList.add("in")); });
+      routes.forEach((r, i) => {
+        const el = d.querySelector(`.vp[data-r="${r}"]`), vm = el.querySelector(".vm"), delay = 1.6 + i * 1.0;
+        if (r === "D" && P.masks[cs]) {
+          addVoxVP(el, cs, [{ set: "EST", key: (a) => a[2], color: css("--mark") || "#b45309", dur: 2.6, hold: 0 }], { delay, onDone: () => vm.classList.add("show") });
+          el.querySelector(".vh").textContent = LBL.D + "（现场体素）";
+          return;
+        }
+        if (!MESH[cs + "/" + r] && r === "A_hunyuan") {
+          el.insertAdjacentHTML("beforeend", '<div class="nopub">网格未公开<br>Hunyuan3D 许可证有地域限制<br>这里只列指标</div>');
+          later(delay, () => vm.classList.add("show"));
+          return;
+        }
+        const cl = !MESH[cs + "/" + r] && r === "C_claude" ? claudeLoop(cs) : null;
+        if (cl) el.querySelector(".vh").textContent = LBL[r] + "（第 " + cl.iters[cl.iters.length - 1].iter + " 轮）";
+        (cl ? loadMesh(LMESH, cl.iters[cl.iters.length - 1].mesh) : loadMesh(MESH, cs + "/" + r)).then((o) => addMeshVP(el, o, { delay, color: r === "gt" ? css("--ink-2") : null, onDone: () => vm.classList.add("show") }));
+      });
+    }, say);
+  }
+  const cdline = (cs, keys) => keys.map((k) => `${LBL[k].replace(/^[A-Z]\s/, "")} <b>${f4((M(cs, k) || {}).chamfer)}</b>`).join("，");
+  compareStep("bracket", 22, () => `L 形支架，硬表面零件。左边是输入，右边依次“长”出真值和各路线结果，视窗下方是 Chamfer、F-score、体积 IoU。${cdline("bracket", ["B", "A_pixal", "D", "A_hunyuan"])}。注意 TRELLIS.2 只看正视图，深度靠猜。`);
+  compareStep("spot", 22, () => `奶牛 Spot，有机体。这里原生 3D 生成模型占优：${cdline("spot", ["A_pixal", "A_hunyuan", "C_claude", "D"])}。Claude 代理用椭球、胶囊等基本体拼，拼不出有机曲面。`);
+  compareStep("blind_05", 22, () => `盲测零件 05，参数保密。LLM 写 Blender 代码的闭环在这里最准：${cdline("blind_05", ["C_claude", "B", "D", "A_hunyuan", "A_pixal"])}。下一章回放它是怎么一轮轮改出来的。`);
+  compareStep("chair", 20, () => `椅子，薄件。${cdline("chair", ["D", "B", "A_pixal", "A_hunyuan", "A_trellis"])}。原生 3D 模型在细腿、薄板上会整体失败，Hunyuan3D 的椅子体积 IoU 只有 ${f3((M("chair", "A_hunyuan") || {}).vol_iou)}。`);
+
+  // ---- 第 4 章 LLM 闭环回放
+  function lineDiff(prev, cur) {
+    const ps = new Set((prev || "").split("\n"));
+    return cur.split("\n").map((l) => (prev != null && !ps.has(l) ? `<span class="chg">${esc(l)}</span>` : esc(l))).join("\n");
+  }
+  function loopStep(id, iterIdx, dur, say, opts = {}) {
+    step(3, opts.title || `${LOOP[id].who}：${CASENAME[LOOP[id].case] || LOOP[id].case} 第 ${iterIdx + 1} 轮`, dur, () => {
+      const L = LOOP[id];
+      const seq = opts.cycle ? L.iters.map((_, i) => i) : [iterIdx];
+      const per = opts.cycle ? dur / seq.length : dur;
+      const d = scene(`<div style="display:grid;grid-template-columns:minmax(0,0.8fr) minmax(0,1.6fr) minmax(0,1.3fr) minmax(0,1.3fr);gap:12px;min-height:0">
+        <div style="display:grid;gap:6px;align-content:start;min-height:0">
+          <div class="label">${esc(L.who)} · ${esc(L.case)}</div>
+          <div class="chips" id="lchips">${L.iters.map((it) => `<span data-i="${it.iter}">第 ${it.iter} 轮</span>`).join("")}</div>
+          <div class="label" style="margin-top:4px">目标三视图</div>
+          ${L.target ? `<div class="vstack loopv" style="display:grid;gap:4px">${["front", "side", "top"].map((v) => `<figure><img src="${L.target[v]}" alt="目标 ${VNAME[v]}"><figcaption>${VNAME[v]}</figcaption></figure>`).join("")}</div>` : ""}
+        </div>
+        <div class="panel" style="display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:6px">
+          <div class="label" id="lhead"></div>
+          <div class="ssub" id="lplan" style="font-size:13px"></div>
+          <pre class="code" id="lcode"></pre>
+        </div>
+        <div style="display:grid;grid-template-rows:auto auto auto auto;gap:6px;align-content:start">
+          <div class="label">Blender 渲染（本轮模型）</div><div class="views3" id="lrender"></div>
+          <div class="label">差异图：红 = 缺材料，蓝 = 多材料</div><div class="views3" id="ldiff"></div>
+          <div id="lmeter" style="display:grid;gap:4px;margin-top:4px"></div>
+        </div>
+        <div style="display:grid;grid-template-rows:minmax(0,1fr) auto;gap:8px;min-height:0">
+          <div class="vp" id="lvp"><span class="vh">本轮网格（灰色线框 = 真值）</span></div>
+          <div class="panel" id="lfinal" style="font-size:13px"></div>
+        </div></div>`);
+      const gtP = loadMesh(MESH, L.case + "/gt");
+      seq.forEach((ii, n) => later(n * per, () => showIter(L, ii, gtP, Math.min(per, 9))));
+      $("#lfinal").innerHTML = `<b>最终</b>（${L.final.n_iters} 轮）：CD <span class="num">${f4(L.final.chamfer)}</span> · F@0.02 <span class="num">${f3(L.final["fscore@0.02"])}</span> · 体积IoU <span class="num">${f3(L.final.vol_iou)}</span><br><span class="ssub" style="font-size:12px">来源 ${esc(L.run)}</span>`;
+    }, say);
+  }
+  function showIter(L, ii, gtP, span) {
+    const it = L.iters[ii], prev = ii > 0 ? L.iters[ii - 1] : null;
+    document.querySelectorAll("#lchips span").forEach((s) => s.classList.toggle("on", +s.dataset.i === it.iter));
+    $("#lhead").textContent = `第 ${it.iter} 轮 · 脚本 ${it.script_lines} 行` + (it.llm_seconds != null ? ` · 写脚本 ${Number(it.llm_seconds).toFixed(1)} s` : "") + (it.blender_seconds != null ? ` · Blender ${Number(it.blender_seconds).toFixed(2)} s` : "") + (prev ? " · 底色 = 相对上一轮改动的行" : "");
+    $("#lplan").textContent = it.plan ? (L.id.startsWith("mock") ? "规则说明：" : "代理的思路（原文，英文）：") + it.plan.replace(/\s+/g, " ").slice(0, 220) : "";
+    // 打字机效果
+    const html = lineDiff(prev && prev.script, it.script), code = $("#lcode");
+    const total = it.script.length, tType = Math.min(span * 0.45, 4.5);
+    const t0 = now();
+    const typer = setInterval(() => {
+      const p = Math.min(1, (now() - t0) / (tType / speed));
+      if (p >= 1) { code.innerHTML = html; clearInterval(typer); return; }
+      code.innerHTML = esc(it.script.slice(0, Math.floor(p * total))) + '<span class="caret"></span>';
+    }, 40);
+    timers.push(typer);
+    const imgs = (o, v, alt) => `<figure><img class="pop" src="${o[v]}" alt="${alt} ${VNAME[v]}"><figcaption>${VNAME[v]}</figcaption></figure>`;
+    $("#lrender").innerHTML = ["front", "side", "top"].map((v) => imgs(it.render, v, "渲染")).join("");
+    $("#ldiff").innerHTML = ["front", "side", "top"].map((v) => imgs(it.diff, v, "差异")).join("");
+    $("#lmeter").innerHTML = ["front", "side", "top", "mean"].map((v) => `<div class="meter"><span>${v === "mean" ? "均值" : VNAME[v].slice(0, 2)}</span><span class="trk"><span class="fil" data-w="${it.iou[v]}"></span><span class="thr" style="left:${((0.985 - 0.6) / 0.4) * 100}%" title="停止阈值 0.985"></span></span><span class="num">${f3(it.iou[v])}</span></div>`).join("") + `<div class="label">刻度 0.6–1.0，橙线 = 停止阈值 0.985</div>`;
+    later(tType * 0.6, () => document.querySelectorAll("#lrender img").forEach((n) => n.classList.add("in")));
+    later(tType * 0.6 + 0.8, () => document.querySelectorAll("#ldiff img").forEach((n) => n.classList.add("in")));
+    later(tType * 0.6 + 1.2, () => document.querySelectorAll("#lmeter .fil").forEach((n) => (n.style.width = Math.max(0, (Number(n.dataset.w) - 0.6) / 0.4) * 100 + "%")));
+    // 3D：本轮网格生长，真值线框作参照
+    VPS = VPS.filter((v) => v.el !== $("#lvp"));
+    Promise.all([loadMesh(LMESH, it.mesh), gtP]).then(([o, g]) => addMeshVP($("#lvp"), o, { delay: tType * 0.6 / speed, dur: 2.2, ghostObj: g }));
+  }
+  const LB5 = LOOP.claude_blind05, LS = LOOP.claude_spot, LM5 = LOOP.mock_blind05;
+  loopStep("claude_blind05", 0, 16, () => `闭环的每一轮：模型读目标三视图，<b>写一段 Blender 建模脚本</b>；无头 Blender 执行、渲染三视图，和目标比轮廓，生成差异图。第 1 轮：底板、两条三角筋、方块、圆柱、两个通孔，轮廓 IoU 均值 <b>${f3(LB5.iters[0].iou.mean)}</b>。`);
+  loopStep("claude_blind05", 1, 15, () => `差异图和数字发回去，模型按“红色缺、蓝色多”改参数（底色标出改动的行）。第 2 轮到 <b>${f3(LB5.iters[1].iou.mean)}</b>，过了停止阈值 0.985。最终 CD <b>${f4(LB5.final.chamfer)}</b>、体积 IoU <b>${f3(LB5.final.vol_iou)}</b>。注意：这里的“LLM”是 <b>Claude Code 代理通过文件交换手动扮演</b>，不是 API 自动调用。`);
+  loopStep("mock_blind05", 0, 18, () => `对照：同一个闭环换成<b>规则 mock</b>（不是 LLM）：第 1 轮包围盒，第 2 轮正视图挤出，第 3 轮三视图挤出求交。轮廓 IoU 到 <b>${f3(LM5.iters[LM5.iters.length - 1].iou.mean)}</b>，比 Claude 代理还高，但体积 IoU 只有 <b>${f3(LM5.final.vol_iou)}</b>（Claude 代理 ${f3(LB5.final.vol_iou)}）。差距在“读懂零件结构”，不在轮廓。`, { cycle: true, title: "规则 mock：同一个闭环，不用 LLM" });
+  loopStep("claude_spot", 0, 18, () => `有机体反过来：Claude 代理用椭球和胶囊拼奶牛，3 轮只到轮廓 IoU <b>${f3(LS.iters[LS.iters.length - 1].iou.mean)}</b>，CD <b>${f4(LS.final.chamfer)}</b>。基本体 CSG 写不出有机曲面，这类物体交给 3D 生成模型。`, { cycle: true, title: "Claude 代理拼奶牛 Spot（3 轮）" });
+
+  // ---- 第 5 章 Qwen 生成三视图
+  function qwenStep(rows, dur, say) {
+    step(4, "Qwen 生成 vs 真值：" + rows.map((r) => CASENAME[r.case] || r.case).join("、"), dur, () => {
+      const d = scene(`<div style="display:grid;grid-template-rows:auto minmax(0,1fr);gap:10px;min-height:0">
+        <div><h2 class="stitle">Qwen-Image-2.1 补画的三视图 vs 真值</h2><p class="ssub">给模型真值正视图，让它画出侧视图和顶视图。IoU = 生成轮廓与真值轮廓的重叠率。</p></div>
+        <div style="display:grid;grid-template-columns:repeat(${rows.length},minmax(0,1fr));gap:18px;min-height:0">
+        ${rows.map((g, gi) => `<div class="panel" style="display:grid;gap:6px;align-content:start"><b>${esc(CASENAME[g.case] || g.case)}</b>
+          <div class="label">真值</div><div class="views3">${["front", "side", "top"].map((v) => `<figure><img src="${SC + g.gt[v]}" alt="真值 ${VNAME[v]}"><figcaption>${VNAME[v]}</figcaption></figure>`).join("")}</div>
+          <div class="label">Qwen 生成</div><div class="views3">${["front", "side", "top"].map((v) => `<figure><img class="pop" data-g="${gi}" src="${SC + g.gen[v]}" alt="生成 ${VNAME[v]}"><figcaption>${VNAME[v]} · IoU <b class="num ${g.iou[v] < 0.5 ? "q-bad" : g.iou[v] < 0.8 ? "q-mid" : "q-good"}">${f3(g.iou[v])}</b></figcaption></figure>`).join("")}</div></div>`).join("")}
+        </div></div>`);
+      d.querySelectorAll("img.pop").forEach((n, i) => later(1.5 + i * 0.7, () => n.classList.add("in")));
+    }, say);
+  }
+  const G = D.gen.rows, GR = Object.fromEntries(G.map((g) => [g.case, g]));
+  const qline = (g) => `${CASENAME[g.case] || g.case}侧视 <b>${f3(g.iou.side)}</b>、顶视 <b>${f3(g.iou.top)}</b>`;
+  qwenStep(G.slice(0, 2), 16, () => `第五条路线：用扩散模型 <b>Qwen-Image-2.1</b> 画三视图（深度学习）。正视图照着画，基本像；但侧视图和顶视图的几何经常不对：${G.slice(0, 2).map(qline).join("；")}。`);
+  qwenStep(G.slice(2, 4), 15, () => `${G.slice(2, 4).map(qline).join("；")}。IoU 不低时也可能画错结构，比如上一页的杯子侧视 IoU 不低，顶视图却画成了方杯。20 张平均：侧视 <b>${f3(D.numbers.gen_side)}</b>、顶视 <b>${f3(D.numbers.gen_top)}</b>。拿生成的三视图去建模，轮廓雕刻的 CD 从 <b>${f4(D.numbers.named_D)}</b> 变成 <b>${f4(D.numbers.named_G_D)}</b>。瓶颈在第一步。`);
+  step(4, "纯文字生成的三视图", 13, () => {
+    const d = scene(`<div style="display:grid;grid-template-rows:auto minmax(0,1fr);gap:10px;min-height:0">
+      <div><h2 class="stitle">只给一句话，让 Qwen 画三视图</h2><p class="ssub">没有真值，只能检查三张图之间共享的尺寸是否一致（三对尺寸的最大相对误差，越小越好）。</p></div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-height:0">${D.gen.t2i.map((t) => `<figure class="pop" style="margin:0;display:grid;gap:4px;min-height:0"><img src="${SC + t.img}" alt="${esc(t.prompt)}" style="width:100%;max-height:30vh;object-fit:contain;background:#fff;border:1px solid var(--rule)"><figcaption class="ssub" style="font-size:13px">${esc(t.prompt)} · 最大相对误差 <b class="num">${f3(t.err)}</b></figcaption></figure>`).join("")}</div></div>`);
+    d.querySelectorAll(".pop").forEach((n, i) => later(0.5 + i * 1.2, () => n.classList.add("in")));
+  }, () => `只给一句话时，画面看起来像三视图，但三张图之间的尺寸对不上，比如法兰的侧视图画成弯管、顶视图照抄正视图。所以<b>不要把生成的三视图当几何真值</b>。`);
+
+  // ---- 第 6 章 结论
+  step(5, "结论与推荐", 24, () => {
+    const rows = D.summary.blind;
+    const d = scene(`<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:16px;min-height:0">
+      <div class="panel" style="display:grid;gap:8px;align-content:start">
+        <b>盲测零件 6 件 · F-score@0.02（越高越好）</b>
+        <div class="chart">${rows.map((r) => `<div class="row"><span>${esc(r.label)}</span><span class="trk"><span class="fil" data-w="${r["fscore@0.02"]}"></span></span><span class="num" style="text-align:right">${f3(r["fscore@0.02"])}</span></div>`).join("")}</div>
+        <b style="margin-top:8px">盲测零件 6 件 · 体积 IoU</b>
+        <div class="chart">${rows.map((r) => `<div class="row"><span>${esc(r.label)}</span><span class="trk"><span class="fil" data-w="${r.vol_iou}"></span></span><span class="num" style="text-align:right">${f3(r.vol_iou)}</span></div>`).join("")}</div>
+        <div class="warnbox" style="margin-top:6px">局限：“Claude 代理”一行是代理手动扮演 LLM，盲测生成器也是同一代理写的，数字应视为上限；A、B 用真值做了对齐，偏乐观；每条路线只跑 1 个种子；B 用的是 Blender 渲染的理想视频。</div>
+      </div>
+      <div class="panel" style="display:grid;gap:8px;align-content:start;min-height:0;overflow:auto">
+        <b>路线对比与推荐</b>
+        <table><thead><tr>${D.compare.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${D.compare.rows.map((r) => `<tr class="pop">${r.map((c, i) => `<td${i === 0 ? ' style="font-weight:600"' : ""}>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>
+        <div class="pop" id="rec" style="display:grid;gap:4px;font-size:14px">
+          <div>· <b>机械件、产品</b>：LLM 写 Blender/CAD 代码 + 渲染比对闭环，三视图只作校验。</div>
+          <div>· <b>角色、有机体</b>：正视图 + 侧视图 → Pixal3D-MV 或 Hunyuan3D-2mv。</div>
+          <div>· <b>有实物或可控视频</b>：至少两圈不同仰角 → VGGT → TSDF。</div>
+          <div>· <b>只有一句话</b>：图像模型只出一张正视图，再走上面两条之一。</div>
+        </div>
+      </div></div>`);
+    later(0.6, () => d.querySelectorAll(".chart .fil").forEach((n) => (n.style.width = Number(n.dataset.w) * 100 + "%")));
+    d.querySelectorAll("tr.pop").forEach((n, i) => later(2 + i * 0.8, () => n.classList.add("in")));
+    later(9, () => $("#rec").classList.add("in"));
+  }, () => `总结：<b>硬表面</b>用 LLM 写代码闭环最准（盲测 CD ${f4(SUMB["C 闭环·Claude 代理"] && SUMB["C 闭环·Claude 代理"].chamfer)}），<b>有机体</b>用 Pixal3D / Hunyuan3D，<b>视频重建</b>在理想视频下很稳，<b>Qwen 画的侧/顶视图</b>是整条 AI 链路的瓶颈。局限：LLM 闭环由代理手动扮演，没有用 API 自动跑。`);
+
+  // ================= 播放引擎 =================
+  let cur = -1, playing = true, auto = true, speed = 1, stepT0 = 0, stepDur = 1, spoken = true, voice = false, pausedAt = 0;
+  const qs = new URLSearchParams(location.search);
+  if (qs.get("speed")) speed = Math.max(0.25, Number(qs.get("speed")) || 1);
+  if (qs.get("autoplay") === "0") { auto = false; }
+  $("#b-speed").value = String(speed); $("#b-auto").setAttribute("aria-pressed", String(auto));
+  $("#chapters").innerHTML = CH.map((c, i) => `<button data-ch="${i}">${i + 1} ${esc(c)}</button>`).join("");
+  $("#chapters").addEventListener("click", (e) => { const b = e.target.closest("[data-ch]"); if (b) go(STEPS.findIndex((s) => s.ch === +b.dataset.ch)); });
+
+  function speak(txt) {
+    if (!voice || !window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(txt.replace(/<[^>]+>/g, ""));
+    u.lang = "zh-CN"; u.rate = Math.min(2, 1.05 * speed);
+    const zh = speechSynthesis.getVoices().find((v) => /zh/i.test(v.lang));
+    if (zh) u.voice = zh;
+    spoken = false; u.onend = () => (spoken = true); u.onerror = () => (spoken = true);
+    speechSynthesis.speak(u);
+  }
+  function go(i) {
+    if (i < 0 || i >= STEPS.length) return;
+    clearTimers(); clear3D(); view.auto = true;
+    cur = i; const S = STEPS[i];
+    try { S.enter(); } catch (e) { fail("第 " + (i + 1) + " 步出错：" + e.message); console.error(e); }
+    const txt = S.say();
+    $("#cap-txt").innerHTML = txt;
+    $("#cap-step").textContent = `${i + 1}/${STEPS.length} · ${CH[S.ch]}`;
+    document.querySelectorAll("#chapters button").forEach((b) => b.classList.toggle("on", +b.dataset.ch === S.ch));
+    stepT0 = now(); stepDur = S.dur / speed; spoken = true; pausedAt = 0;
+    speak(txt);
+    if (history.replaceState) { const u = new URL(location.href); u.searchParams.set("step", String(i + 1)); history.replaceState(null, "", u); }
+  }
+  function tick(t) {
+    if (cur < 0) return;
+    if (!playing) { if (!pausedAt) pausedAt = t; return; }
+    if (pausedAt) { stepT0 += t - pausedAt; pausedAt = 0; }
+    const p = Math.min(1, (t - stepT0) / stepDur);
+    $("#prog").style.width = ((cur + p) / STEPS.length) * 100 + "%";
+    if (p >= 1 && auto && spoken) { if (cur < STEPS.length - 1) go(cur + 1); else { auto = false; $("#b-auto").setAttribute("aria-pressed", "false"); } }
+  }
+  function setPlay(v) { playing = v; $("#b-play").textContent = v ? "❚❚" : "▶︎"; $("#b-play").setAttribute("aria-label", v ? "暂停" : "播放"); if (!v && window.speechSynthesis) speechSynthesis.pause(); else if (window.speechSynthesis) speechSynthesis.resume(); }
+  $("#b-play").onclick = () => setPlay(!playing);
+  $("#b-prev").onclick = () => go(cur - 1);
+  $("#b-next").onclick = () => go(cur + 1);
+  $("#b-auto").onclick = () => { auto = !auto; $("#b-auto").setAttribute("aria-pressed", String(auto)); if (auto) setPlay(true); };
+  $("#b-voice").onclick = () => { voice = !voice; $("#b-voice").setAttribute("aria-pressed", String(voice)); if (voice) speak($("#cap-txt").innerHTML); else if (window.speechSynthesis) { speechSynthesis.cancel(); spoken = true; } };
+  $("#b-speed").onchange = (e) => { speed = Number(e.target.value); stepDur = STEPS[cur].dur / speed; };
+  window.addEventListener("keydown", (e) => {
+    if (e.key === " ") { e.preventDefault(); setPlay(!playing); }
+    else if (e.key === "ArrowRight" || e.key === "PageDown") go(cur + 1);
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") go(cur - 1);
+    else if (/^[1-6]$/.test(e.key)) go(STEPS.findIndex((s) => s.ch === +e.key - 1));
+  });
+  window.P6DEMO_STATE = () => ({ step: cur + 1, total: STEPS.length, vps: VPS.length, webgl: !!R });
+  go(Math.max(0, Math.min(STEPS.length - 1, (Number(qs.get("step")) || 1) - 1)));
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

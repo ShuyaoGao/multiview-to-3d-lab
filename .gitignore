@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# 便携工具、模型权重、运行留痕（体积大、可再生，不进仓库）
+tools/blender/
+tools/comfyui/
+tools/vggt/
+tools/dl/
+models/
+runs/
+bench/data/
+bench/assets_src/
+
+# 大文件产物
+*.obj
+*.ply
+*.glb
+*.mp4
+*.npy
+*.npz
+*.safetensors
+*.gguf
+*.ckpt
+*.pth
+
+# 机密
+.env
+*.key
+
+# 本地杂项
+.DS_Store
+*.log

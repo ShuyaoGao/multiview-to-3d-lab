@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software or its teaching materials, please cite it as below."
+title: "三视图到三维 / Multiview-to-3D Lab: a measured comparison of AI routes from three orthographic views to a 3D model"
+abstract: "A teaching demo and small benchmark (16 synthetic objects with ground truth) comparing five routes from front/side/top views to 3D: silhouette carving (visual hull), an LLM writing Blender code in a render-and-compare loop, native multi-view-to-3D diffusion models via ComfyUI, turntable video to VGGT reconstruction, and image-model-generated three-view sheets. Includes an in-browser auto-playing demo with rotating 3D results. Part of the AI Teaching Demos series."
+type: software
+authors:
+  - family-names: "Gao"
+    given-names: "Shuyao"
+    email: "gaoshuyao.mk@gmail.com"
+    affiliation: "aSSIST University (Seoul School of Integrated Sciences and Technologies)"
+version: "1.0"
+license: MIT
+repository-code: "https://github.com/ShuyaoGao/multiview-to-3d-lab"
+url: "https://shuyaogao.github.io/multiview-to-3d-lab/"
+keywords:
+  - 3D reconstruction
+  - visual hull
+  - multi-view
+  - LLM code generation
+  - Blender
+  - teaching demo

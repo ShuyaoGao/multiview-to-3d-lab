@@ -1,0 +1,373 @@
+<title>三视图到三维：实测台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* 版式概念：一张工程图纸。每节是一张“图幅”，右下角是标题栏；第三角投影符号作为页眉标记；数据用等宽字体。 */
+:root {
+  --paper: #f2f4f1;      /* 图纸底色：偏绿的冷灰 */
+  --sheet: #fbfcfa;      /* 图幅 */
+  --ink: #1b2220;        /* 墨线 */
+  --ink-2: #4e5955;      /* 次要文字 */
+  --rule: #c8cfca;       /* 细线 */
+  --accent: #0d6b70;     /* 主色：制图青 */
+  --accent-ink: #ffffff;
+  --mark: #b45309;       /* 批注色（修订标记） */
+  --good: #1f7a3a;
+  --bad: #b42318;
+  --bar: #2a78d6;
+  --bar-dim: #9fb6cf;
+  --vp-bg: #e9ece8;
+  --font-display: "Saira Condensed", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-body: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  --font-data: "JetBrains Mono", "Consolas", "Menlo", monospace;
+  --step--1: 0.8125rem; --step-0: 1rem; --step-1: 1.25rem; --step-2: 1.6rem; --step-3: 2.4rem; --step-4: 3.4rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #101413; --sheet: #161b1a; --ink: #e5ebe8; --ink-2: #a7b2ad; --rule: #2e3835;
+    --accent: #4fb3b9; --accent-ink: #0b1514; --mark: #e0a04a; --good: #5fc27a; --bad: #f07a6e;
+    --bar: #3987e5; --bar-dim: #3d5675; --vp-bg: #1d2422; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #101413; --sheet: #161b1a; --ink: #e5ebe8; --ink-2: #a7b2ad; --rule: #2e3835;
+  --accent: #4fb3b9; --accent-ink: #0b1514; --mark: #e0a04a; --good: #5fc27a; --bad: #f07a6e;
+  --bar: #3987e5; --bar-dim: #3d5675; --vp-bg: #1d2422; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: var(--step-0); line-height: 1.65; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; display: grid; gap: 28px; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.25; margin: 0; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: var(--step-4); letter-spacing: 0.01em; }
+h2 { font-size: var(--step-2); font-weight: 700; }
+h3 { font-size: var(--step-1); font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+.label { font-family: var(--font-data); font-size: var(--step--1); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.sheet { background: var(--sheet); border: 1px solid var(--rule); padding: clamp(16px, 3vw, 32px); display: grid; gap: 18px; position: relative; min-width: 0; }
+.sheet > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--rule); padding-bottom: 10px; }
+.sheet > header .label { white-space: nowrap; }
+.cols { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.cols > * { min-width: 0; }
+
+/* 页眉：投影符号 + 标题栏 */
+.top { display: grid; gap: 18px; grid-template-columns: 1fr auto; align-items: start; }
+.proj-symbol { width: 92px; height: 46px; color: var(--ink); }
+.titleblock { font-family: var(--font-data); font-size: var(--step--1); border: 1px solid var(--ink); display: grid; grid-template-columns: auto auto; min-width: 0; }
+.titleblock div { padding: 4px 8px; border-bottom: 1px solid var(--rule); }
+.titleblock div:nth-child(odd) { color: var(--ink-2); border-right: 1px solid var(--rule); }
+.thesis { font-size: var(--step-1); max-width: 46ch; }
+@media (max-width: 640px) { .top { grid-template-columns: 1fr; } h1 { font-size: var(--step-3); } }
+
+/* 结论条 */
+.findings { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
+.finding { border-top: 3px solid var(--accent); padding-top: 10px; display: grid; gap: 6px; align-content: start; }
+.finding .big { font-family: var(--font-display); font-size: var(--step-3); font-weight: 700; line-height: 1; }
+.finding.warn { border-top-color: var(--mark); }
+
+/* 路线图 */
+.routes { display: grid; gap: 0; border: 1px solid var(--rule); }
+.route { display: grid; grid-template-columns: 56px minmax(0, 1fr) minmax(0, 1.2fr); gap: 14px; padding: 14px; border-bottom: 1px solid var(--rule); align-items: start; }
+.route:last-child { border-bottom: 0; }
+.route .tag { font-family: var(--font-display); font-weight: 700; font-size: var(--step-3); line-height: 1; color: var(--accent); }
+.route .pipe { font-family: var(--font-data); font-size: var(--step--1); color: var(--ink-2); line-height: 1.7; }
+.route .pipe b { color: var(--ink); font-weight: 600; }
+@media (max-width: 720px) { .route { grid-template-columns: 44px minmax(0, 1fr); } .route .pipe { grid-column: 2; } }
+.user-said { font-size: var(--step--1); color: var(--mark); }
+
+/* 查看器 */
+.viewer-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { font-family: var(--font-body); font-size: var(--step--1); border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); padding: 6px 12px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.vp-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); position: relative; }
+.vp { background: var(--vp-bg); aspect-ratio: 1 / 1; max-width: 100%; position: relative; display: grid; grid-template-rows: auto 1fr auto; }
+.vp .vp-head { font-size: var(--step--1); padding: 6px 8px 0; font-weight: 600; }
+.vp .vp-metrics { font-family: var(--font-data); font-size: 0.72rem; color: var(--ink-2); padding: 0 8px 6px; display: flex; gap: 10px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.vp .vp-missing { align-self: center; justify-self: center; font-size: var(--step--1); color: var(--ink-2); }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+.vp-grid { touch-action: pan-y; }
+.views3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.views3 figure { margin: 0; display: grid; gap: 4px; }
+.views3 img { width: 100%; height: auto; border: 1px solid var(--rule); background: #fff; }
+.views3 figcaption { font-size: var(--step--1); color: var(--ink-2); }
+
+/* 表格 */
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: var(--step--1); }
+th, td { border-bottom: 1px solid var(--rule); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+td.n { font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+td.best { color: var(--good); font-weight: 600; }
+.q-good { color: var(--good); } .q-bad { color: var(--bad); } .q-mid { color: var(--mark); }
+
+/* 条形图 */
+.chart { display: grid; gap: 6px; }
+.chart .row { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr) 4.2em; gap: 8px; align-items: center; font-size: var(--step--1); position: relative; }
+.chart .track { height: 14px; background: transparent; border-left: 1px solid var(--rule); position: relative; }
+.chart .fill { position: absolute; left: 0; top: 1px; bottom: 1px; background: var(--bar); border-radius: 0 4px 4px 0; }
+.chart .fill.dim { background: var(--bar-dim); }
+.chart .val { font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; }
+.chart .row:hover .fill { outline: 2px solid var(--sheet); filter: brightness(1.08); }
+.chart-axis { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr) 4.2em; gap: 8px; font-family: var(--font-data); font-size: 0.7rem; color: var(--ink-2); }
+.chart-axis .ticks { display: flex; justify-content: space-between; }
+.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--sheet); font-size: var(--step--1); padding: 6px 9px; max-width: 280px; z-index: 5; }
+@media (max-width: 560px) { .chart .row, .chart-axis { grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr) 3.8em; } }
+
+.gallery { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.gallery figure { margin: 0; display: grid; gap: 4px; }
+.gallery img { width: 100%; border: 1px solid var(--rule); background: #fff; }
+.gallery figcaption { font-size: var(--step--1); color: var(--ink-2); }
+.steps { display: grid; gap: 0; counter-reset: s; border-left: 2px solid var(--accent); }
+.steps > div { padding: 4px 0 14px 18px; position: relative; }
+.steps > div::before { counter-increment: s; content: counter(s); position: absolute; left: -12px; top: 4px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-family: var(--font-data); font-size: 0.75rem; display: grid; place-items: center; }
+.note { font-size: var(--step--1); color: var(--ink-2); }
+.decide { display: grid; gap: 10px; }
+.decide > div { border-left: 3px solid var(--mark); padding-left: 12px; }
+footer.small { font-size: var(--step--1); color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap" id="top">
+  <section class="sheet">
+    <div class="top">
+      <div style="display:grid;gap:14px;min-width:0">
+        <span class="label">p6-multiview-3d · 2026-10 · 实测</span>
+        <h1>三视图到三维：实测台</h1>
+        <p class="thesis">“AI 出三视图，再自动建模”能做到多准？我们做了 16 个有真值的物体，把 ComfyUI + Qwen-Image、视频转台重建、LLM + Blender、原生多视图 3D 模型放在同一把尺子上量了一遍。</p>
+      </div>
+      <div style="display:grid;gap:8px;justify-items:end">
+        <svg class="proj-symbol" viewBox="0 0 92 46" role="img" aria-label="第三角投影符号">
+          <title>第三角投影符号</title>
+          <g fill="none" stroke="currentColor" stroke-width="1.6">
+            <circle cx="20" cy="23" r="14"></circle><circle cx="20" cy="23" r="6"></circle>
+            <path d="M44 9 L84 15 L84 31 L44 37 Z"></path>
+            <path d="M2 23 H38 M20 5 V41 M40 23 H90" stroke-dasharray="6 3" stroke-width="0.8"></path>
+          </g>
+        </svg>
+        <div class="titleblock" aria-label="标题栏">
+          <div>投影</div><div>第三角（ANSI）</div>
+          <div>尺度</div><div>最长边 1.6 · 视窗 [−1,1]²</div>
+          <div>基准</div><div id="tb-cases">16 个物体</div>
+          <div>硬件</div><div>RTX 5090 Laptop · ≈12 GB</div>
+        </div>
+      </div>
+    </div>
+    <div class="findings" id="findings"></div>
+  </section>
+
+  <section class="sheet" id="routes">
+    <header><h2>最初的设想与五条路线</h2><span class="label">图 1 · 流程</span></header>
+    <div class="routes" id="route-list"></div>
+  </section>
+
+  <section class="sheet" id="viewer">
+    <header><h2>同一个物体，各路线建出来的样子</h2><span class="label">图 2 · 可旋转</span></header>
+    <p class="note">拖动任一视窗旋转，所有视窗同步。网格已简化到约 4000 面，路线 A/B 的结果已用相似变换对齐到真值坐标系（与评测一致）。CD 为 Chamfer 距离（越小越好，物体最长边 = 1.6），F 为 F-score@0.02。</p>
+    <div class="viewer-ctl" id="case-chips" role="group" aria-label="选择物体"></div>
+    <div class="views3" id="input-views"></div>
+    <div class="vp-grid" id="vp-grid"><canvas id="gl"></canvas></div>
+  </section>
+
+  <section class="sheet" id="metrics">
+    <header><h2>指标：盲测零件 6 个</h2><span class="label">图 3 · 均值</span></header>
+    <p class="note">盲测零件由随机程序生成，参数没有给写脚本的人看过，避免“知道答案”的污染。下面两张图共用一条 0–1 的刻度。</p>
+    <div class="cols">
+      <div class="chart" id="chart-blind-f" aria-label="F-score 条形图"></div>
+      <div class="chart" id="chart-blind-v" aria-label="体积 IoU 条形图"></div>
+    </div>
+    <h3>命名形体 10 个（含家具、建筑、角色、有机体）</h3>
+    <div class="cols">
+      <div class="chart" id="chart-named-f"></div>
+      <div class="chart" id="chart-named-v"></div>
+    </div>
+    <h3>逐物体 Chamfer 距离</h3>
+    <div class="tbl-wrap"><table id="tbl-cases"></table></div>
+  </section>
+
+  <section class="sheet" id="genviews">
+    <header><h2>Qwen-Image-2.1 画的三视图准不准</h2><span class="label">图 4 · 生成 vs 真值</span></header>
+    <p class="note" id="gen-summary"></p>
+    <div id="gen-rows" style="display:grid;gap:16px"></div>
+    <h3>纯文字生成的三视图（无真值，只能看自洽性）</h3>
+    <div class="gallery" id="t2i-gallery"></div>
+  </section>
+
+  <section class="sheet" id="loop">
+    <header><h2>LLM + Blender 闭环是怎么收敛的</h2><span class="label">图 5 · 盲测零件 blind_05</span></header>
+    <p class="note">每一轮：模型写 bpy 脚本 → 无头 Blender 建模 → 渲染三视图 → 和目标比轮廓（深灰 = 一致，红 = 缺材料，蓝 = 多材料）→ 把差异图和数字发回去。本页数字里的“Claude 代理”是 Claude Code 代理通过文件交换手动扮演 LLM 得到的，不是 API 自动调用（本机没有 API key）。</p>
+    <div id="loop-rows" style="display:grid;gap:12px"></div>
+  </section>
+
+  <section class="sheet" id="compare">
+    <header><h2>路线对比</h2><span class="label">表 1</span></header>
+    <div class="tbl-wrap"><table id="tbl-routes"></table></div>
+  </section>
+
+  <section class="sheet" id="train">
+    <header><h2>“训练成自己的模型”要走几步</h2><span class="label">图 6 · 路线图</span></header>
+    <div class="cols">
+      <div class="steps" id="train-steps"></div>
+      <figure style="margin:0;display:grid;gap:6px"><img src="assets/img/dataset_demo.png" alt="合成数据样例：随机零件的三视图" style="border:1px solid var(--rule);background:#fff"><figcaption class="note">train/make_dataset.py 生成的配对样本：输入是三视图，标签就是生成它的建模代码。本机 20 条用时 108 秒。</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="sheet" id="decide">
+    <header><h2>落地前要考虑的事</h2><span class="label">延伸</span></header>
+    <div class="decide" id="decide-list"></div>
+  </section>
+  <footer class="small">数字全部来自各次运行的 result.json（runs/ 目录），汇总脚本 src/p6/report.py；查看器网格由 showcase/build_assets.py 生成。three.js r147（MIT）随页面本地加载。所有物体都是合成数据（程序化形体与 CC0 模型的 Blender 渲染图）；Hunyuan3D-2mv 的网格因许可证地域限制未公开。<br>Shuyao Gao · aSSIST University · AI 教学演示案例 / AI Teaching Demos · 代码 MIT，文档 CC BY 4.0</footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script src="assets/vendor/three.min.js"></script>
+<script src="assets/vendor/OrbitControls.js"></script>
+<script src="assets/vendor/GLTFLoader.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/meshes.js"></script>
+<script>
+(function () {
+  const D = window.P6DATA, MESH = window.P6MESH || {};
+  const $ = (s, el = document) => el.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const f3 = (v) => (v == null ? "—" : Number(v).toFixed(3));
+  const f4 = (v) => (v == null ? "—" : Number(v).toFixed(4));
+
+  // ---------- 结论条
+  $("#findings").innerHTML = D.findings.map((f) => `<div class="finding ${f.warn ? "warn" : ""}"><span class="label">${esc(f.label)}</span><span class="big num">${esc(f.big)}</span><p class="note">${esc(f.text)}</p></div>`).join("");
+  $("#tb-cases").textContent = D.n_cases + " 个物体";
+
+  // ---------- 路线
+  $("#route-list").innerHTML = D.routes_story.map((r) => `<div class="route"><div class="tag">${esc(r.tag)}</div><div style="display:grid;gap:4px;min-width:0"><h3>${esc(r.title)}</h3>${r.user ? `<span class="user-said">最初设想：${esc(r.user)}</span>` : ""}<p class="note">${esc(r.verdict)}</p></div><div class="pipe">${r.pipe}</div></div>`).join("");
+
+  // ---------- 条形图
+  const tip = $("#tip");
+  function bars(el, rows, key, title) {
+    const max = 1;
+    el.innerHTML = `<div class="label">${esc(title)}</div>` + rows.map((r) => {
+      const v = r[key];
+      const w = v == null ? 0 : Math.max(0, Math.min(1, v / max)) * 100;
+      return `<div class="row" data-tip="${esc(r.label)}：${esc(title)} ${f3(v)}${r.note ? "（" + esc(r.note) + "）" : ""}"><span style="min-width:0;overflow-wrap:anywhere">${esc(r.label)}</span><span class="track"><span class="fill ${r.dim ? "dim" : ""}" style="width:${w}%"></span></span><span class="val">${f3(v)}</span></div>`;
+    }).join("") + `<div class="chart-axis"><span></span><span class="ticks"><span>0</span><span>0.5</span><span>1</span></span><span></span></div>`;
+  }
+  document.addEventListener("pointermove", (e) => {
+    const row = e.target.closest && e.target.closest("[data-tip]");
+    if (!row) { tip.hidden = true; return; }
+    tip.textContent = row.getAttribute("data-tip");
+    tip.hidden = false;
+    const x = Math.min(e.clientX + 14, window.innerWidth - 290);
+    tip.style.left = x + "px"; tip.style.top = (e.clientY + 14) + "px";
+  });
+  bars($("#chart-blind-f"), D.summary.blind, "fscore@0.02", "F-score@0.02（越高越好）");
+  bars($("#chart-blind-v"), D.summary.blind, "vol_iou", "体积 IoU（越高越好）");
+  bars($("#chart-named-f"), D.summary.named, "fscore@0.02", "F-score@0.02");
+  bars($("#chart-named-v"), D.summary.named, "vol_iou", "体积 IoU");
+
+  // ---------- 逐物体表
+  (function () {
+    const cols = D.case_table.routes;
+    let h = `<thead><tr><th>物体</th><th>类别</th>${cols.map((c) => `<th>${esc(c.label)}</th>`).join("")}</tr></thead><tbody>`;
+    for (const row of D.case_table.rows) {
+      const vals = cols.map((c) => row.cd[c.key]);
+      const finite = vals.filter((v) => v != null);
+      const best = finite.length ? Math.min(...finite) : null;
+      h += `<tr><td>${esc(row.case)}</td><td>${esc(row.category)}</td>${vals.map((v) => `<td class="n ${v != null && v === best ? "best" : ""}">${f4(v)}</td>`).join("")}</tr>`;
+    }
+    $("#tbl-cases").innerHTML = h + "</tbody>";
+  })();
+
+  // ---------- 生成视图
+  $("#gen-summary").textContent = D.gen.summary;
+  $("#gen-rows").innerHTML = D.gen.rows.map((g) => `<div style="display:grid;gap:6px"><div class="label">${esc(g.case)} · 侧视 IoU ${f3(g.iou.side)} · 顶视 IoU ${f3(g.iou.top)}</div><div class="views3">${["front", "side", "top"].map((v) => `<figure><img src="${g.gt[v]}" alt="${esc(g.case)} 真值 ${v}" loading="lazy"><figcaption>真值 ${v}</figcaption></figure>`).join("")}</div><div class="views3">${["front", "side", "top"].map((v) => `<figure><img src="${g.gen[v]}" alt="${esc(g.case)} 生成 ${v}" loading="lazy"><figcaption>Qwen 生成 ${v} · IoU ${f3(g.iou[v])}</figcaption></figure>`).join("")}</div></div>`).join("");
+  $("#t2i-gallery").innerHTML = D.gen.t2i.map((t) => `<figure><img src="${t.img}" alt="${esc(t.prompt)}" loading="lazy"><figcaption>${esc(t.prompt)} · 三对尺寸最大相对误差 ${f3(t.err)}</figcaption></figure>`).join("");
+
+  // ---------- 闭环
+  $("#loop-rows").innerHTML = D.loop.map((it) => `<div style="display:grid;gap:4px"><div class="label">第 ${it.iter} 轮 · 轮廓 IoU 均值 ${f3(it.iou)}</div><div class="views3">${["front", "side", "top"].map((v) => `<figure><img src="${it.diff[v]}" alt="第 ${it.iter} 轮 ${v} 差异图" loading="lazy"><figcaption>${v}</figcaption></figure>`).join("")}</div></div>`).join("") + `<p class="note">${esc(D.loop_note)}</p>`;
+
+  // ---------- 对比表 / 训练 / 待决
+  $("#tbl-routes").innerHTML = `<thead><tr>${D.compare.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>` + D.compare.rows.map((r) => `<tr>${r.map((c, i) => `<td${i === 0 ? ' style="font-weight:600"' : ""}>${c}</td>`).join("")}</tr>`).join("") + "</tbody>";
+  $("#train-steps").innerHTML = D.train.map((s) => `<div><h3 style="font-size:var(--step-0)">${esc(s.t)}</h3><p class="note">${esc(s.d)}</p></div>`).join("");
+  $("#decide-list").innerHTML = D.decide.map((s) => `<div><b>${esc(s.t)}</b><p class="note">${esc(s.d)}</p></div>`).join("");
+
+  // ---------- 3D 查看器：一个 WebGL 上下文，用 scissor 画多个视窗
+  const grid = $("#vp-grid"), canvas = $("#gl");
+  const cases = Object.keys(D.viewer.cases);
+  let current = cases[0];
+  $("#case-chips").innerHTML = cases.map((c) => `<button class="chip" id="chip-${c}" aria-pressed="${c === current}" data-case="${c}">${esc(c)}</button>`).join("");
+  $("#case-chips").addEventListener("click", (e) => { const b = e.target.closest("[data-case]"); if (b) select(b.dataset.case); });
+
+  if (!window.THREE) { grid.insertAdjacentHTML("beforeend", '<p class="note">three.js 没有加载成功，3D 查看器不可用。</p>'); const info0 = D.viewer.cases[current]; $("#input-views").innerHTML = ["front", "side", "top"].map((v) => `<figure><img src="${info0.views[v]}" alt="${esc(current)} ${v}"><figcaption>输入 ${v}</figcaption></figure>`).join(""); return; }
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setScissorTest(true);
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
+  camera.position.set(2.4, 1.6, 3.2);
+  const loader = new THREE.GLTFLoader();
+  const cache = {};
+  let views = [];
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  function b64ToBuf(b64) { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
+  function loadMesh(key) {
+    if (cache[key]) return Promise.resolve(cache[key]);
+    return new Promise((res) => {
+      const b64 = MESH[key];
+      if (!b64) return res(null);
+      loader.parse(b64ToBuf(b64), "", (g) => { cache[key] = g.scene; res(g.scene); }, () => res(null));
+    });
+  }
+  function makeScene(obj, isGT) {
+    const s = new THREE.Scene();
+    s.add(new THREE.HemisphereLight(0xffffff, 0x6a7570, 0.9));
+    const d = new THREE.DirectionalLight(0xffffff, 0.8); d.position.set(2, 3, 4); s.add(d);
+    const c = obj.clone(true);
+    const color = new THREE.Color(isGT ? css("--ink-2") || "#4e5955" : css("--accent") || "#0d6b70");
+    c.traverse((m) => { if (m.isMesh) { m.material = new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.0, flatShading: false, side: THREE.DoubleSide }); m.geometry.computeVertexNormals(); } });
+    s.add(c);
+    return s;
+  }
+  async function select(c) {
+    current = c;
+    document.querySelectorAll("#case-chips .chip").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.case === c)));
+    const info = D.viewer.cases[c];
+    $("#input-views").innerHTML = ["front", "side", "top"].map((v) => `<figure><img src="${info.views[v]}" alt="${esc(c)} ${v}"><figcaption>输入 ${v}</figcaption></figure>`).join("");
+    grid.querySelectorAll(".vp").forEach((n) => n.remove());
+    views = [];
+    for (const r of D.viewer.routes) {
+      const m = info.metrics[r.key];
+      const el = document.createElement("div");
+      el.className = "vp";
+      el.innerHTML = `<div class="vp-head">${esc(r.label)}</div><div class="vp-body"></div><div class="vp-metrics">${r.key === "gt" ? "<span>真值</span>" : m ? `<span>CD ${f4(m.chamfer)}</span><span>F ${f3(m["fscore@0.02"])}</span><span>IoU ${f3(m.vol_iou)}</span>` : ""}</div>`;
+      grid.appendChild(el);
+      const key = c + "/" + r.key;
+      const obj = MESH[key] ? await loadMesh(key) : null;
+      if (!obj) { el.querySelector(".vp-body").outerHTML = `<div class="vp-missing">${r.key === "A_hunyuan" ? "网格未公开（许可证地域限制，只列指标）" : "该路线未跑此物体"}</div>`; continue; }
+      views.push({ el, scene: makeScene(obj, r.key === "gt") });
+    }
+    draw();
+  }
+  if (THREE.OrbitControls) {
+    const controls = new THREE.OrbitControls(camera, grid);
+    controls.enableDamping = false; controls.enablePan = false;
+    controls.addEventListener("change", draw);
+  }
+  function draw() {
+    const rect = grid.getBoundingClientRect();
+    const w = Math.floor(rect.width), h = Math.floor(rect.height);
+    if (canvas.width !== w * renderer.getPixelRatio() || canvas.height !== h * renderer.getPixelRatio()) renderer.setSize(w, h, false);
+    renderer.setScissor(0, 0, w, h); renderer.setClearColor(0x000000, 0); renderer.clear();
+    for (const v of views) {
+      const r = v.el.getBoundingClientRect();
+      const x = r.left - rect.left, y = rect.bottom - r.bottom, vw = r.width, vh = r.height - 46;
+      if (vw <= 0 || vh <= 0) continue;
+      renderer.setViewport(x, y + 22, vw, vh); renderer.setScissor(x, y + 22, vw, vh);
+      camera.aspect = vw / vh; camera.updateProjectionMatrix();
+      renderer.render(v.scene, camera);
+    }
+  }
+  window.addEventListener("resize", draw);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => select(current));
+  select(current);
+})();
+</script>

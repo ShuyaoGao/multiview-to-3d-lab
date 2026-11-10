@@ -1,0 +1,12 @@
+# ComfyUI 读取本项目 models/ 目录（权重不进 git）。启动时用 --extra-model-paths-config 指向本文件。
+# base_path 相对于本文件所在目录解析不可靠，src/p6/comfy/server.py 会在启动前写一份绝对路径版本到 runs/comfy/。
+p6:
+  base_path: ../models
+  diffusion_models: diffusion_models
+  checkpoints: checkpoints
+  text_encoders: text_encoders
+  clip: text_encoders
+  vae: vae
+  loras: loras
+  clip_vision: clip_vision
+  background_removal: background_removal
